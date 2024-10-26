@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Contrôle du Sous-Marin</title>
+<style>
+body {
+  background-color: #222;
+  color: #0f0;
+  font-family: monospace;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  margin: 0;
+}
+
+#container {
+  background-color: #333;
+  padding: 20px;
+  border-radius: 10px;
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+label {
+  display: block;
+  margin-bottom: 5px;
+}
+
+input[type="number"] {
+  width: 100px;
+  background-color: #000;
+  color: #0f0;
+  border: 1px solid #0f0;
+  padding: 5px;
+}
+
+button {
+  background-color: #0f0;
+  color: #000;
+  border: none;
+  padding: 10px 20px;
+  margin-top: 10px;
+  cursor: pointer;
+}
+
+#gamepad-info {
+  margin-top: 20px;
+  text-align: center;
+}
+</style>
+</head>
+<body>
+  <div id="container">
+    <h1>Contrôle du Sous-Marin</h1>
+    <label for="depth">Profondeur automatique:</label>
+    <input type="number" id="depth" value="0">
+    <button id="activate">Activer</button>
+    <button id="deactivate">Désactiver</button>
+
+    <div id="gamepad-info">
+      Manette non détectée
+    </div>
+  </div>
+
+  <script>
+    const depthInput = document.getElementById('depth');
+    const activateButton = document.getElementById('activate');
+    const deactivateButton = document.getElementById('deactivate');
+    const gamepadInfo = document.getElementById('gamepad-info');
+
+    let gamepadIndex = null;
+    let depth = 0;
+    let autopilot = false;
+
+    function handleGamepadConnected(event) {
+      gamepadIndex = event.gamepad.index;
+      gamepadInfo.textContent = `Manette connectée (index ${gamepadIndex})`;
+    }
+
+    function handleGamepadDisconnected(event) {
+      if (event.gamepad.index === gamepadIndex) {
+        gamepadIndex = null;
+        gamepadInfo.textContent = 'Manette déconnectée';
+      }
+    }
+
+    function pollGamepad() {
+      if (gamepadIndex !== null) {
+        const gamepad = navigator.getGamepads()[gamepadIndex];
+        // Ici, vous pouvez accéder aux axes et boutons de la manette
+        // par exemple: gamepad.axes[0] pour l'axe horizontal du joystick gauche
+        //             gamepad.buttons[0].pressed pour savoir si le bouton A est pressé
+
+        // Exemple de contrôle de la profondeur avec le joystick gauche :
+        depth += gamepad.axes[1] * -0.1; // axe vertical inversé
+        depthInput.value = depth.toFixed(2);
+
+        // Envoyer les commandes au sous-marin (à implémenter)
+        sendCommandsToSubmarine({ depth, autopilot });
+      }
+      requestAnimationFrame(pollGamepad);
+    }
+
+    function sendCommandsToSubmarine(commands) {
+      // Ici, vous devez implémenter la communication avec le sous-marin
+      // par exemple, en utilisant WebSockets ou une API REST
+      console.log('Envoi des commandes au sous-marin:', commands);
+    }
+
+    activateButton.addEventListener('click', () => {
+      autopilot = true;
+      depth = parseFloat(depthInput.value);
+    });
+
+    deactivateButton.addEventListener('click', () => {
+      autopilot = false;
+    });
+
+    window.addEventListener('gamepadconnected', handleGamepadConnected);
+    window.addEventListener('gamepaddisconnected', handleGamepadDisconnected);
+    requestAnimationFrame(pollGamepad);
+  </script>
+</body>
+</html>
