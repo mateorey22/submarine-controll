@@ -144,27 +144,28 @@
     let forwardSpeed = 0;
 
     function updateSubmarine(gamepad) {
-      const yawInput = gamepad.axes[0];      // Déplacement latéral
-      const forwardInput = gamepad.axes[1];  // Avant/arrière
-      const pitchInput = gamepad.axes[3];    // Inclinaison
-      const rollInput = gamepad.axes[2];     // Roulement
+      // Joystick gauche pour le déplacement latéral et avant/arrière
+      const lateralInput = gamepad.axes[0];    // Gauche/droite
+      const forwardInput = gamepad.axes[1];    // Avant/arrière
 
-      // Mises à jour de la rotation
+      // Joystick droit pour la rotation
+      const yawInput = gamepad.axes[2];        // Rotation (yaw)
+      const pitchInput = gamepad.axes[3];      // Inclinaison (pitch)
+
+      // Mises à jour de la rotation (yaw et pitch via joystick droit)
       currentRotation.yaw += yawInput * 3;
       currentRotation.pitch = pitchInput * 30;
-      currentRotation.roll = rollInput * 30;
 
       // Calcul de la vitesse avant/arrière
       forwardSpeed = -forwardInput * 5;
-      const angle = (currentRotation.yaw - 90) * (Math.PI / 180);
 
-      // Calculs de position dans les trois dimensions
-      currentPosition.x += Math.cos(angle) * forwardSpeed;
-      currentPosition.y += Math.sin(angle) * forwardSpeed;
+      // Calcul des mouvements latéraux et avant/arrière en fonction de l'orientation
+      const yawRad = currentRotation.yaw * (Math.PI / 180);
+      currentPosition.x += Math.cos(yawRad) * forwardSpeed + Math.sin(yawRad) * lateralInput * 3;
+      currentPosition.y += Math.sin(yawRad) * forwardSpeed - Math.cos(yawRad) * lateralInput * 3;
 
-      // Altitude
-      const verticalSpeed = (gamepad.buttons[7].value - gamepad.buttons[6].value) * 2;
-      currentPosition.z += verticalSpeed;
+      // Calcul de la profondeur (altitude) en fonction de l'inclinaison (pitch)
+      currentPosition.z += Math.sin(currentRotation.pitch * (Math.PI / 180)) * forwardSpeed;
       currentPosition.z = Math.max(50, Math.min(150, currentPosition.z));
 
       // Contrôle des phares
@@ -175,7 +176,7 @@
 
       applyTransformations();
       updateHUD();
-      createBubbleTrail(forwardSpeed, angle);
+      createBubbleTrail(forwardSpeed, yawRad);
     }
 
     function applyTransformations() {
@@ -186,7 +187,6 @@
         translateZ(${currentPosition.z - 100}px)
         rotateZ(${currentRotation.yaw}deg)
         rotateX(${currentRotation.pitch}deg)
-        rotateY(${currentRotation.roll}deg)
       `;
     }
 
