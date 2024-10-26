@@ -1,149 +1,99 @@
 <!DOCTYPE html>
 <html>
-
 <head>
-  <title>Contrôle du Sous-Marin</title>
-  <style>
-    body {
-      background-color: #222;
-      color: #0f0;
-      font-family: monospace;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      margin: 0;
-      overflow: hidden;
-    }
+<title>Contrôle du Sous-Marin</title>
+<style>
+body {
+  background-color: #222;
+  color: #0f0;
+  font-family: monospace;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  margin: 0;
+  overflow: hidden;
+  perspective: 1000px; /* Perspective pour l'effet 3D */
+}
 
-    #container {
-      background-color: #333;
-      padding: 20px;
-      border-radius: 10px;
-      display: flex;
-      gap: 20px;
-    }
+#container {
+  background-color: #333;
+  padding: 20px;
+  border-radius: 10px;
+  display: flex;
+  gap: 20px;
+  transform-style: preserve-3d; /* Permet la 3D pour les éléments enfants */
+}
 
-    h1 {
-      text-align: center;
-      margin-bottom: 20px;
-    }
+h1 {
+  text-align: center;
+  margin-bottom: 20px;
+}
 
-    label {
-      display: block;
-      margin-bottom: 5px;
-    }
+/* ... (autres styles CSS) ... */
 
-    input[type="number"] {
-      width: 100px;
-      background-color: #000;
-      color: #0f0;
-      border: 1px solid #0f0;
-      padding: 5px;
-    }
+#orientation {
+  width: 400px;
+  height: 300px;
+  border: 1px solid #0f0;
+  perspective: 1000px;
+  margin-bottom: 20px;
+  position: relative;
+  overflow: hidden;
+  transform-style: preserve-3d; /* Permet la 3D pour les éléments enfants */
+}
 
-    button {
-      background-color: #0f0;
-      color: #000;
-      border: none;
-      padding: 10px 20px;
-      margin-top: 10px;
-      cursor: pointer;
-    }
+#submarine {
+  width: 100px;
+  height: 50px;
+  background-color: #0f0;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform-style: preserve-3d;
+  transform: translate(-50%, -50%) translateZ(100px); /* Positionnement initial en 3D */
+  transition: transform 0.1s ease; /* Transition pour un mouvement fluide */
+}
 
-    #gamepad-info {
-      margin-top: 20px;
-      text-align: center;
-    }
+.direction-indicator {
+  /* ... (styles du point rouge) ... */
+}
 
-    #orientation {
-      width: 300px;
-      height: 200px;
-      border: 1px solid #0f0;
-      perspective: 800px;
-      margin-bottom: 20px;
-      position: relative;
-      overflow: hidden;
-    }
+.scene {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d; /* Permet la 3D pour les éléments enfants */
+  perspective-origin: center; /* Point de fuite de la perspective */
+}
 
-    #submarine {
-      width: 100px;
-      height: 50px;
-      background-color: #0f0;
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform-style: preserve-3d;
-      transform: translate(-50%, -50%);
-    }
+.background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url("https://source.unsplash.com/random/800x600/?underwater"); /* Image de fond */
+  background-size: cover;
+  transform: translateZ(-200px); /* Positionnement en arrière-plan */
+  filter: blur(3px); /* Flou pour l'effet de profondeur */
+}
 
-    .direction-indicator {
-      width: 10px;
-      height: 10px;
-      background-color: red;
-      border-radius: 50%;
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-    }
-
-    #gamepad-view {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 5px;
-    }
-
-    .button {
-      width: 30px;
-      height: 30px;
-      background-color: #333;
-      border: 1px solid #0f0;
-      border-radius: 50%;
-    }
-
-    .pressed {
-      background-color: #0f0;
-    }
-
-    .headlights {
-      position: absolute;
-      top: 10px;
-      left: 20px;
-      width: 10px;
-      height: 10px;
-      background-color: yellow;
-      border-radius: 50%;
-      box-shadow: 60px 0 0 yellow;
-    }
-
-    .headlights.off {
-      display: none;
-    }
-  </style>
+/* ... (autres styles CSS) ... */
+</style>
 </head>
-
 <body>
   <div id="container">
     <div>
-      <h1>Contrôle du Sous-Marin</h1>
-      <label for="depth">Profondeur automatique:</label>
-      <input type="number" id="depth" value="0">
-      <button id="activate">Activer</button>
-      <button id="deactivate">Désactiver</button>
-
-      <div id="gamepad-info">
-        Manette non détectée
-      </div>
-    </div>
-
-    <div>
       <div id="orientation">
-        <div id="submarine">
-          <div class="headlights off"></div>
+        <div class="scene">
+          <div class="background"></div>
+          <div id="submarine">
+            <div class="headlights off"></div>
+          </div>
+          <div class="direction-indicator"></div>
         </div>
-        <div class="direction-indicator"></div>
       </div>
 
       <div id="gamepad-view"></div>
@@ -151,55 +101,47 @@
   </div>
 
   <script>
-    const depthInput = document.getElementById('depth');
-    const activateButton = document.getElementById('activate');
-    const deactivateButton = document.getElementById('deactivate');
-    const gamepadInfo = document.getElementById('gamepad-info');
-    const orientationDiv = document.getElementById('orientation');
-    const submarineDiv = document.getElementById('submarine');
-    const gamepadView = document.getElementById('gamepad-view');
-    const directionIndicator = document.querySelector('.direction-indicator');
+    // ... (variables JavaScript) ...
 
-    let gamepadIndex = null;
-    let depth = 0;
-    let autopilot = false;
+    let headlightsOn = false; // Variable pour l'état des phares
 
     function handleGamepadConnected(event) {
-      gamepadIndex = event.gamepad.index;
-      gamepadInfo.textContent = `Manette connectée (index ${gamepadIndex})`;
+      // ... (code pour la connexion de la manette) ...
     }
 
     function handleGamepadDisconnected(event) {
-      if (event.gamepad.index === gamepadIndex) {
-        gamepadIndex = null;
-        gamepadInfo.textContent = 'Manette déconnectée';
-      }
+      // ... (code pour la déconnexion de la manette) ...
     }
 
     function pollGamepad() {
       if (gamepadIndex !== null) {
         const gamepad = navigator.getGamepads()[gamepadIndex];
 
-        // Contrôle de la profondeur
-        depth += gamepad.axes[1] * -0.1; // axe vertical inversé
-        depthInput.value = depth.toFixed(2);
+        // ... (contrôle de la profondeur) ...
 
-        // Mettre à jour l'orientation du sous-marin
-        updateOrientation(gamepad);
+        // Mettre à jour l'orientation et l'avancement du sous-marin
+        updateSubmarine(gamepad);
 
         // Mettre à jour la vue des boutons de la manette
         updateGamepadView(gamepad);
 
         // Envoyer les commandes au sous-marin (à implémenter)
-        sendCommandsToSubmarine({depth, autopilot});
+        sendCommandsToSubmarine({ depth, autopilot });
       }
       requestAnimationFrame(pollGamepad);
     }
 
-    function updateOrientation(gamepad) {
+    function updateSubmarine(gamepad) {
       const roll = gamepad.axes[0] * 20; // Inclinaison latérale
       const pitch = gamepad.axes[1] * 20; // Inclinaison avant/arrière
-      submarineDiv.style.transform = `translate(-50%, -50%) rotateX(${pitch}deg) rotateY(${roll}deg)`;
+
+      // Avancement du sous-marin avec la gâchette droite (index 6)
+      let speed = gamepad.buttons[6].value * 5; // Vitesse en fonction de la pression sur la gâchette
+
+      // Calculer la position en 3D en fonction de la direction et de la vitesse
+      let translateZ = parseFloat(submarineDiv.style.transform.match(/translateZ\((.*?)px\)/)[1]) - speed;
+
+      submarineDiv.style.transform = `translate(-50%, -50%) translateZ(${translateZ}px) rotateX(${pitch}deg) rotateY(${roll}deg)`;
 
       // Mettre à jour la position du point rouge
       const x = (gamepad.axes[0] * 50) + 50; // axe horizontal (joystick gauche)
@@ -209,45 +151,20 @@
     }
 
     function updateGamepadView(gamepad) {
-      gamepadView.innerHTML = ''; // Effacer les boutons précédents
+      // ... (code pour la vue des boutons) ...
 
-      for (let i = 0; i < gamepad.buttons.length; i++) {
-        const button = document.createElement('div');
-        button.classList.add('button');
-        if (gamepad.buttons[i].pressed) {
-          button.classList.add('pressed');
-        }
-        gamepadView.appendChild(button);
-      }
-
-      // Allumer les phares avec le bouton Y (index 3 sur la manette Xbox)
+      // Allumer/éteindre les phares avec la touche Y (index 3 sur la manette Xbox)
       const headlights = document.querySelector('.headlights');
-      if (gamepad.buttons[3].pressed) {
+      if (gamepad.buttons[3].pressed && !headlightsOn) {
         headlights.classList.remove('off');
-      } else {
+        headlightsOn = true;
+      } else if (!gamepad.buttons[3].pressed && headlightsOn) {
         headlights.classList.add('off');
+        headlightsOn = false;
       }
     }
 
-    function sendCommandsToSubmarine(commands) {
-      // Ici, vous devez implémenter la communication avec le sous-marin
-      // par exemple, en utilisant WebSockets ou une API REST
-      console.log('Envoi des commandes au sous-marin:', commands);
-    }
-
-    activateButton.addEventListener('click', () => {
-      autopilot = true;
-      depth = parseFloat(depthInput.value);
-    });
-
-    deactivateButton.addEventListener('click', () => {
-      autopilot = false;
-    });
-
-    window.addEventListener('gamepadconnected', handleGamepadConnected);
-    window.addEventListener('gamepaddisconnected', handleGamepadDisconnected);
-    requestAnimationFrame(pollGamepad);
+    // ... (autres fonctions JavaScript) ...
   </script>
 </body>
-
 </html>
