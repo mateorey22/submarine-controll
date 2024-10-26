@@ -24,6 +24,7 @@
         #submarine3D { width: 200px; height: 200px; }
         .button { display: inline-block; padding: 10px; margin: 5px; background-color: #0059b3; border-radius: 5px; }
         #joystick-left, #joystick-right { width: 100px; height: 100px; background-color: #004080; border-radius: 50%; }
+        .arrow { color: cyan; font-size: 20px; margin: 5px; }
     </style>
 </head>
 <body>
@@ -36,11 +37,14 @@
             <div class="button">A</div>
             <div class="button">B</div>
             <div class="button">X</div>
-            <div class="button">Y</div>
+            <div class="button">Y - Phares</div>
         </div>
         <div>
             Joystick gauche : <span id="joystick-left-pos">(0, 0)</span><br>
             Joystick droit : <span id="joystick-right-pos">(0, 0)</span>
+        </div>
+        <div>
+            Phares : <span id="headlightStatus">Éteints</span>
         </div>
     </div>
 
@@ -48,6 +52,7 @@
     <div id="submarineView">
         <h2>Vue sous-marine</h2>
         <canvas id="submarineCanvas"></canvas>
+        <div id="speedInfo">Vitesse : <span id="speed">0</span> m/s</div>
     </div>
 
     <!-- Vue 3D simplifiée du sous-marin -->
@@ -61,17 +66,22 @@
         const orientationCanvas = document.getElementById('orientationCanvas');
         const joystickLeftPos = document.getElementById('joystick-left-pos');
         const joystickRightPos = document.getElementById('joystick-right-pos');
+        const headlightStatus = document.getElementById('headlightStatus');
+        const speedDisplay = document.getElementById('speed');
 
         let leftStick = { x: 0, y: 0 };
         let rightStick = { x: 0, y: 0 };
         let submarineRotation = { yaw: 0, pitch: 0 };
+        let headlightsOn = false;
+        let speed = 0;
 
-        // Simulation des joysticks
+        // Simulation des joysticks et du contrôle des phares
         document.addEventListener('keydown', (e) => {
             if (e.key === 'ArrowLeft') leftStick.x = -1;
             if (e.key === 'ArrowRight') leftStick.x = 1;
             if (e.key === 'ArrowUp') rightStick.y = -1;
             if (e.key === 'ArrowDown') rightStick.y = 1;
+            if (e.key === 'y') toggleHeadlights();
             updateJoysticks();
         });
         document.addEventListener('keyup', (e) => {
@@ -79,6 +89,12 @@
             if (['ArrowUp', 'ArrowDown'].includes(e.key)) rightStick.y = 0;
             updateJoysticks();
         });
+
+        function toggleHeadlights() {
+            headlightsOn = !headlightsOn;
+            headlightStatus.textContent = headlightsOn ? 'Allumés' : 'Éteints';
+            drawSubmarineView();
+        }
 
         function updateJoysticks() {
             joystickLeftPos.textContent = `(${leftStick.x}, ${leftStick.y})`;
@@ -89,6 +105,8 @@
         function updateSubmarineMovement() {
             submarineRotation.yaw += rightStick.x;
             submarineRotation.pitch += rightStick.y;
+            speed = Math.sqrt(leftStick.x ** 2 + leftStick.y ** 2) * 2; // Simulation de la vitesse en m/s
+            speedDisplay.textContent = speed.toFixed(1);
             drawOrientation();
             drawSubmarineView();
         }
@@ -107,12 +125,26 @@
         function drawSubmarineView() {
             const ctx = submarineCanvas.getContext('2d');
             ctx.clearRect(0, 0, submarineCanvas.width, submarineCanvas.height);
-            ctx.fillStyle = 'darkblue';
+            ctx.fillStyle = headlightsOn ? '#99ccff' : '#003366';
             ctx.fillRect(0, 0, submarineCanvas.width, submarineCanvas.height);
             ctx.fillStyle = 'lightblue';
             ctx.font = '20px Arial';
             ctx.fillText('Vue Sous-Marine', 10, 30);
             ctx.fillText(`Orientation: ${submarineRotation.yaw}° / ${submarineRotation.pitch}°`, 10, 60);
+            drawArrows(ctx);
+        }
+
+        function drawArrows(ctx) {
+            ctx.fillStyle = 'cyan';
+            const arrowSize = 10;
+            const centerX = submarineCanvas.width / 2;
+            const centerY = submarineCanvas.height / 2;
+
+            // Dessine les flèches de direction
+            if (leftStick.x < 0) ctx.fillText('⬅', centerX - 30, centerY);
+            if (leftStick.x > 0) ctx.fillText('➡', centerX + 30, centerY);
+            if (leftStick.y < 0) ctx.fillText('⬆', centerX, centerY - 30);
+            if (leftStick.y > 0) ctx.fillText('⬇', centerX, centerY + 30);
         }
 
         drawOrientation();
