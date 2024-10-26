@@ -1,87 +1,173 @@
-<!DOCTYPE html>
+refait le code en l'améliorant car la commande du sous marin est trop comliqueées et il faut faire le soususmarin en 3d aussi : <!DOCTYPE html>
+
 <html>
+
 <head>
+
 <title>Contrôle du Sous-Marin DJI Style (Manette Xbox)</title>
+
 <style>
+
 /* Styles identiques au code précédent, aucune modification nécessaire */
+
 </style>
+
 </head>
+
 <body>
-  <div id="container">
-    <div>
-      <div id="orientation">
-        <div class="scene">
-          <div class="reference-grid"></div>
-          <div id="submarine">
-            <div class="submarine-body"></div>
-            <div class="direction-arrow front-arrow"></div>
-            <div class="direction-arrow rear-arrow"></div>
-            <div class="headlights headlight-left"></div>
-            <div class="headlights headlight-right"></div>
-            <div class="light-beam"></div>
-          </div>
-          <div class="direction-indicator"></div>
-          <div class="hud-overlay">
-            <div class="attitude-indicator"></div>
-            <div class="speed-indicator">0 km/h</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
 
-  <script>
-    // ... (Même code que précédemment jusqu'à la fonction updateSubmarine)
+  <div id="container">
 
-    function updateSubmarine(gamepad) {
-      // Mapping des contrôles de la manette Xbox :
-      // Joystick gauche (axes 0 et 1) : Déplacement horizontal (yaw pour la rotation, axe 1 pour avant/arrière)
-      const yawInput = gamepad.axes[0];
-      const forwardInput = gamepad.axes[1];  // Avant/arrière
+    <div>
 
-      currentRotation.yaw += yawInput * 3;
+      <div id="orientation">
 
+        <div class="scene">
 
-      // Joystick droit (axes 2 et 3) :  Pitch et Roll
-      const pitchInput = gamepad.axes[3]; // Haut/bas -> Pitch
-      const rollInput = gamepad.axes[2];  // Gauche/droite -> Roll
+          <div class="reference-grid"></div>
 
-      currentRotation.pitch = pitchInput * 30;
-      currentRotation.roll = rollInput * 30;
+          <div id="submarine">
 
-      // Gâchette droite (RT, bouton 7) :  Monter (axe 5 sur certaines manettes)
-      // Gâchette gauche (LT, bouton 6) : Descendre (axe 4 sur certaines manettes)
+            <div class="submarine-body"></div>
 
-      const verticalSpeed = (gamepad.buttons[7].value - gamepad.buttons[6].value) * 2; //Monter/Descendre
+            <div class="direction-arrow front-arrow"></div>
 
+            <div class="direction-arrow rear-arrow"></div>
 
-       // Calculer le mouvement en fonction de l'orientation et de l'input avant/arrière
-      const angle = (currentRotation.yaw - 90) * (Math.PI / 180);
-      const forwardSpeed = -forwardInput * 5; // Notez le signe négatif pour inverser l'axe Y
+            <div class="headlights headlight-left"></div>
 
+            <div class="headlights headlight-right"></div>
 
-      if (Math.abs(forwardSpeed) > 0.1) {
-          currentPosition.x += Math.cos(angle) * forwardSpeed;
-          currentPosition.y += Math.sin(angle) * forwardSpeed;
+            <div class="light-beam"></div>
 
-          // Créer des bulles à l'arrière du sous-marin (adapter la position en fonction du forwardInput)
-          for (let i = 0; i < Math.abs(forwardSpeed) * 2; i++) {
-            createBubble(
-              currentPosition.x * 6 - Math.cos(angle) * 50,
-              currentPosition.y * 4 - Math.sin(angle) * 50,
-              Math.abs(forwardSpeed)
-            );
-          }
-        }
+          </div>
+
+          <div class="direction-indicator"></div>
+
+          <div class="hud-overlay">
+
+            <div class="attitude-indicator"></div>
+
+            <div class="speed-indicator">0 km/h</div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
 
 
 
-      // Mettre à jour l'altitude avec verticalSpeed calculé plus haut
-      currentPosition.z += verticalSpeed;
-      currentPosition.z = Math.max(50, Math.min(150, currentPosition.z));
+  <script>
 
-      // ... (reste du code identique)
+    // ... (Même code que précédemment jusqu'à la fonction updateSubmarine)
 
-  </script>
+
+
+    function updateSubmarine(gamepad) {
+
+      // Mapping des contrôles de la manette Xbox :
+
+      // Joystick gauche (axes 0 et 1) : Déplacement horizontal (yaw pour la rotation, axe 1 pour avant/arrière)
+
+      const yawInput = gamepad.axes[0];
+
+      const forwardInput = gamepad.axes[1];  // Avant/arrière
+
+
+
+      currentRotation.yaw += yawInput * 3;
+
+
+
+
+
+      // Joystick droit (axes 2 et 3) :  Pitch et Roll
+
+      const pitchInput = gamepad.axes[3]; // Haut/bas -> Pitch
+
+      const rollInput = gamepad.axes[2];  // Gauche/droite -> Roll
+
+
+
+      currentRotation.pitch = pitchInput * 30;
+
+      currentRotation.roll = rollInput * 30;
+
+
+
+      // Gâchette droite (RT, bouton 7) :  Monter (axe 5 sur certaines manettes)
+
+      // Gâchette gauche (LT, bouton 6) : Descendre (axe 4 sur certaines manettes)
+
+
+
+      const verticalSpeed = (gamepad.buttons[7].value - gamepad.buttons[6].value) * 2; //Monter/Descendre
+
+
+
+
+
+       // Calculer le mouvement en fonction de l'orientation et de l'input avant/arrière
+
+      const angle = (currentRotation.yaw - 90) * (Math.PI / 180);
+
+      const forwardSpeed = -forwardInput * 5; // Notez le signe négatif pour inverser l'axe Y
+
+
+
+
+
+      if (Math.abs(forwardSpeed) > 0.1) {
+
+          currentPosition.x += Math.cos(angle) * forwardSpeed;
+
+          currentPosition.y += Math.sin(angle) * forwardSpeed;
+
+
+
+          // Créer des bulles à l'arrière du sous-marin (adapter la position en fonction du forwardInput)
+
+          for (let i = 0; i < Math.abs(forwardSpeed) * 2; i++) {
+
+            createBubble(
+
+              currentPosition.x * 6 - Math.cos(angle) * 50,
+
+              currentPosition.y * 4 - Math.sin(angle) * 50,
+
+              Math.abs(forwardSpeed)
+
+            );
+
+          }
+
+        }
+
+
+
+
+
+
+
+      // Mettre à jour l'altitude avec verticalSpeed calculé plus haut
+
+      currentPosition.z += verticalSpeed;
+
+      currentPosition.z = Math.max(50, Math.min(150, currentPosition.z));
+
+
+
+      // ... (reste du code identique)
+
+
+
+  </script>
+
 </body>
+
 </html>
