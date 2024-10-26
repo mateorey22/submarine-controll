@@ -1,17 +1,110 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Contrôle du Sous-Marin DJI Style (Manette Xbox)</title>
   <style>
-    /* Ajoutez ici vos styles, comme ceux de la structure et de la mise en forme du sous-marin */
-    /* Exemple : .scene, .submarine-body, .direction-arrow, etc. */
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: #001f3f;
+      color: white;
+      height: 100vh;
+      margin: 0;
+    }
+    #container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    #orientation {
+      width: 400px;
+      height: 300px;
+      position: relative;
+      background-color: #003366;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    .scene {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    #submarine {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+    .submarine-body {
+      width: 50px;
+      height: 20px;
+      background-color: #0074D9;
+      position: relative;
+    }
+    .direction-arrow {
+      width: 10px;
+      height: 10px;
+      position: absolute;
+      background-color: cyan;
+    }
+    .front-arrow {
+      top: -15px;
+      left: 20px;
+      transform: rotate(0deg);
+    }
+    .rear-arrow {
+      bottom: -15px;
+      left: 20px;
+      transform: rotate(180deg);
+    }
+    .headlights {
+      width: 5px;
+      height: 5px;
+      background-color: yellow;
+      position: absolute;
+      top: 5px;
+    }
+    .headlight-left {
+      left: -10px;
+    }
+    .headlight-right {
+      right: -10px;
+    }
+    .light-beam {
+      width: 5px;
+      height: 50px;
+      background-color: rgba(255, 255, 0, 0.3);
+      position: absolute;
+      top: -50px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: none;
+    }
+    .hud-overlay {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      color: cyan;
+      font-size: 16px;
+    }
+    .bubble {
+      position: absolute;
+      width: 5px;
+      height: 5px;
+      background-color: rgba(255, 255, 255, 0.8);
+      border-radius: 50%;
+    }
   </style>
 </head>
 <body>
   <div id="container">
     <div id="orientation">
       <div class="scene">
-        <div class="reference-grid"></div>
         <div id="submarine">
           <div class="submarine-body"></div>
           <div class="direction-arrow front-arrow"></div>
@@ -20,73 +113,74 @@
           <div class="headlights headlight-right"></div>
           <div class="light-beam"></div>
         </div>
-        <div class="direction-indicator"></div>
         <div class="hud-overlay">
-          <div class="attitude-indicator"></div>
-          <div class="speed-indicator">0 km/h</div>
+          <div class="attitude-indicator">Yaw: 0°, Pitch: 0°, Roll: 0°</div>
+          <div class="speed-indicator">Vitesse: 0 m/s</div>
+          <div class="altitude-indicator">Altitude: 100 m</div>
         </div>
       </div>
     </div>
+    <p>Utilisez la manette Xbox pour contrôler le sous-marin.</p>
   </div>
 
   <script>
     let currentPosition = { x: 0, y: 0, z: 100 };
     let currentRotation = { yaw: 0, pitch: 0, roll: 0 };
     let headlightsOn = false;
+    let forwardSpeed = 0;
 
     function updateSubmarine(gamepad) {
-      // Joystick gauche : Déplacement horizontal (axes 0 et 1)
-      const yawInput = gamepad.axes[0];
-      const forwardInput = gamepad.axes[1];
+      const yawInput = gamepad.axes[0];     // Déplacement latéral
+      const forwardInput = gamepad.axes[1]; // Avant/arrière
+      const pitchInput = gamepad.axes[3];   // Inclinaison verticale
+      const rollInput = gamepad.axes[2];    // Rotation horizontale
 
+      // Ajuste la rotation
       currentRotation.yaw += yawInput * 3;
-
-      // Joystick droit : Pitch (axes 2 et 3)
-      const pitchInput = gamepad.axes[3];
-      const rollInput = gamepad.axes[2];
-
       currentRotation.pitch = pitchInput * 30;
       currentRotation.roll = rollInput * 30;
 
-      // Gâchettes pour la montée/descente
-      const verticalSpeed = (gamepad.buttons[7].value - gamepad.buttons[6].value) * 2;
-      
-      // Calculer le mouvement en fonction de l'orientation et de l'input avant/arrière
+      // Calcule le mouvement
+      forwardSpeed = -forwardInput * 5; // Vitesse en m/s
       const angle = (currentRotation.yaw - 90) * (Math.PI / 180);
-      const forwardSpeed = -forwardInput * 5;
 
-      if (Math.abs(forwardSpeed) > 0.1) {
-        currentPosition.x += Math.cos(angle) * forwardSpeed;
-        currentPosition.y += Math.sin(angle) * forwardSpeed;
-        // Exemple : créer des bulles à l'arrière du sous-marin
-        createBubbleTrail(forwardSpeed, angle);
-      }
+      currentPosition.x += Math.cos(angle) * forwardSpeed;
+      currentPosition.y += Math.sin(angle) * forwardSpeed;
 
-      // Mettre à jour la position verticale
+      // Ajuste l'altitude avec les gâchettes
+      const verticalSpeed = (gamepad.buttons[7].value - gamepad.buttons[6].value) * 2;
       currentPosition.z += verticalSpeed;
       currentPosition.z = Math.max(50, Math.min(150, currentPosition.z));
 
-      // Activation des phares avec le bouton Y (bouton 3)
+      // Phares (bouton Y)
       if (gamepad.buttons[3].pressed) {
         headlightsOn = !headlightsOn;
         toggleHeadlights(headlightsOn);
       }
+
+      updateHUD();
+      createBubbleTrail(forwardSpeed, angle);
     }
 
     function toggleHeadlights(state) {
-      document.querySelectorAll('.headlight-left, .headlight-right, .light-beam').forEach(element => {
-        element.style.display = state ? 'block' : 'none';
-      });
+      document.querySelector('.light-beam').style.display = state ? 'block' : 'none';
+    }
+
+    function updateHUD() {
+      document.querySelector('.attitude-indicator').textContent = `Yaw: ${currentRotation.yaw.toFixed(1)}°, Pitch: ${currentRotation.pitch.toFixed(1)}°, Roll: ${currentRotation.roll.toFixed(1)}°`;
+      document.querySelector('.speed-indicator').textContent = `Vitesse: ${Math.abs(forwardSpeed).toFixed(1)} m/s`;
+      document.querySelector('.altitude-indicator').textContent = `Altitude: ${currentPosition.z.toFixed(1)} m`;
     }
 
     function createBubbleTrail(speed, angle) {
-      // Simulation des bulles à l'arrière du sous-marin (exemple visuel)
-      const bubble = document.createElement('div');
-      bubble.classList.add('bubble');
-      bubble.style.left = `${currentPosition.x * 6 - Math.cos(angle) * 50}px`;
-      bubble.style.top = `${currentPosition.y * 4 - Math.sin(angle) * 50}px`;
-      document.querySelector('.scene').appendChild(bubble);
-      setTimeout(() => bubble.remove(), 3000);
+      if (speed > 0.1) {
+        const bubble = document.createElement('div');
+        bubble.classList.add('bubble');
+        bubble.style.left = `${currentPosition.x * 0.5 + 200}px`;
+        bubble.style.top = `${currentPosition.y * 0.5 + 150}px`;
+        document.querySelector('.scene').appendChild(bubble);
+        setTimeout(() => bubble.remove(), 3000);
+      }
     }
 
     function updateGamepad() {
@@ -98,7 +192,7 @@
     }
 
     window.addEventListener("gamepadconnected", () => {
-      console.log("Gamepad connecté !");
+      console.log("Manette Xbox connectée !");
       updateGamepad();
     });
   </script>
