@@ -2,7 +2,7 @@
 <html lang="fr">
 
 <head>
-    <title>Contrôle du Sous-Marin 3D avec Manette Xbox</title>
+    <title>Simulation de sous-marin - Vue Première Personne</title>
     <style>
         body, html { margin: 0; overflow: hidden; background-color: #111; }
         #info { position: absolute; top: 10px; left: 10px; color: white; }
@@ -10,78 +10,97 @@
 </head>
 
 <body>
-    <div id="info">Contrôle du sous-marin avec la manette Xbox</div>
+    <div id="info">Contrôlez la vue du sous-marin avec la manette Xbox</div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        let scene, camera, renderer, submarine, bubbles = [], gamepadIndex;
+        let scene, camera, renderer, submarine, target, horizonLine;
+        let isMoving = false, headlightsOn = false, gamepadIndex;
 
         function init() {
             scene = new THREE.Scene();
+
+            // Caméra pour la vue première personne
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.z = 200;
+            camera.position.z = 100;
 
             renderer = new THREE.WebGLRenderer();
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
-            // Modèle simple de sous-marin
-            const geometry = new THREE.CylinderGeometry(5, 5, 30, 32);
-            const material = new THREE.MeshStandardMaterial({ color: 0x0077be });
-            submarine = new THREE.Mesh(geometry, material);
+            // Création de la ligne d'horizon
+            const horizonGeometry = new THREE.PlaneGeometry(200, 0.5);
+            const horizonMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            horizonLine = new THREE.Mesh(horizonGeometry, horizonMaterial);
+            horizonLine.position.z = -50;
+            scene.add(horizonLine);
+
+            // Point cible
+            const targetGeometry = new THREE.SphereGeometry(1, 8, 8);
+            const targetMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            target = new THREE.Mesh(targetGeometry, targetMaterial);
+            target.position.set(0, 0, -50);
+            scene.add(target);
+
+            // Modèle simplifié du sous-marin
+            const submarineGeometry = new THREE.CylinderGeometry(3, 3, 10, 32);
+            const submarineMaterial = new THREE.MeshStandardMaterial({ color: 0x0077be });
+            submarine = new THREE.Mesh(submarineGeometry, submarineMaterial);
+            submarine.position.z = -50;
             scene.add(submarine);
 
-            // Éclairage
-            const light = new THREE.PointLight(0xffffff, 1, 1000);
-            light.position.set(10, 10, 50);
-            scene.add(light);
+            // Éclairage pour les phares
+            const lightLeft = new THREE.SpotLight(0xffffff, 0);
+            const lightRight = new THREE.SpotLight(0xffffff, 0);
+            lightLeft.position.set(-2, 0, -45);
+            lightRight.position.set(2, 0, -45);
+            submarine.add(lightLeft);
+            submarine.add(lightRight);
 
             animate();
         }
 
-        function updateSubmarine() {
+        function updateGamepadControls() {
             const gamepad = navigator.getGamepads()[gamepadIndex];
             if (!gamepad) return;
 
-            const yaw = gamepad.axes[0] * 0.05;
-            const pitch = gamepad.axes[3] * 0.05;
-            const roll = gamepad.axes[2] * 0.05;
-            const forward = gamepad.axes[1] * -0.5;
+            // Mouvement du point cible avec le joystick gauche
+            const targetMoveX = gamepad.axes[0] * 2;
+            const targetMoveY = gamepad.axes[1] * -2;
+            target.position.x += targetMoveX;
+            target.position.y += targetMoveY;
 
-            submarine.rotation.y += yaw;
-            submarine.rotation.x += pitch;
-            submarine.rotation.z += roll;
+            // Déplacement du sous-marin vers le point cible en appuyant sur le joystick gauche
+            if (gamepad.buttons[10].pressed) { // Bouton du joystick gauche
+                isMoving = true;
+            }
 
-            // Calcul du déplacement en avant
-            const direction = new THREE.Vector3(Math.sin(submarine.rotation.y), -Math.sin(submarine.rotation.x), Math.cos(submarine.rotation.y));
-            submarine.position.addScaledVector(direction, forward);
-
-            // Création de bulles derrière le sous-marin
-            createBubbles(submarine.position, forward);
-
-            // Contrôle de la profondeur
-            submarine.position.y += (gamepad.buttons[7].pressed - gamepad.buttons[6].pressed) * 2;
-        }
-
-        function createBubbles(position, speed) {
-            if (Math.abs(speed) > 0.1) {
-                const bubbleGeometry = new THREE.SphereGeometry(0.5, 8, 8);
-                const bubbleMaterial = new THREE.MeshBasicMaterial({ color: 0x99d9ea });
-                const bubble = new THREE.Mesh(bubbleGeometry, bubbleMaterial);
-                bubble.position.set(position.x - Math.sin(submarine.rotation.y) * 5, position.y, position.z - Math.cos(submarine.rotation.y) * 5);
-                scene.add(bubble);
-                bubbles.push(bubble);
-
-                // Supprimer les anciennes bulles
-                if (bubbles.length > 50) {
-                    const oldBubble = bubbles.shift();
-                    scene.remove(oldBubble);
+            if (isMoving) {
+                const direction = new THREE.Vector3().subVectors(target.position, submarine.position).normalize();
+                submarine.position.addScaledVector(direction, 0.5);
+                if (submarine.position.distanceTo(target.position) < 1) {
+                    isMoving = false;
                 }
+            }
+
+            // Orientation du sous-marin avec le joystick droit
+            submarine.rotation.y += gamepad.axes[2] * 0.05;
+            submarine.rotation.x += gamepad.axes[3] * 0.05;
+
+            // Contrôle des phares avec la touche Y (bouton 3)
+            if (gamepad.buttons[3].pressed && !headlightsOn) {
+                submarine.children[0].intensity = 1;
+                submarine.children[1].intensity = 1;
+                headlightsOn = true;
+            } else if (gamepad.buttons[3].pressed && headlightsOn) {
+                submarine.children[0].intensity = 0;
+                submarine.children[1].intensity = 0;
+                headlightsOn = false;
             }
         }
 
         function animate() {
             requestAnimationFrame(animate);
-            updateSubmarine();
+            updateGamepadControls();
             renderer.render(scene, camera);
         }
 
