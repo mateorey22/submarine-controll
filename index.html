@@ -38,7 +38,8 @@
       position: absolute;
       top: 50%;
       left: 50%;
-      transform: translate(-50%, -50%);
+      transform-origin: center;
+      transition: transform 0.05s linear;
     }
     .submarine-body {
       width: 50px;
@@ -55,7 +56,6 @@
     .front-arrow {
       top: -15px;
       left: 20px;
-      transform: rotate(0deg);
     }
     .rear-arrow {
       bottom: -15px;
@@ -158,8 +158,21 @@
         toggleHeadlights(headlightsOn);
       }
 
+      applyTransformations();
       updateHUD();
       createBubbleTrail(forwardSpeed, angle);
+    }
+
+    function applyTransformations() {
+      const submarine = document.getElementById('submarine');
+      submarine.style.transform = `
+        translate(-50%, -50%) 
+        translateX(${currentPosition.x}px)
+        translateY(${currentPosition.y}px)
+        rotateZ(${currentRotation.yaw}deg)
+        rotateX(${currentRotation.pitch}deg)
+        rotateY(${currentRotation.roll}deg)
+      `;
     }
 
     function toggleHeadlights(state) {
