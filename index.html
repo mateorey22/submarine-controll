@@ -13,12 +13,15 @@ body {
   justify-content: center;
   height: 100vh;
   margin: 0;
+  overflow: hidden; /* Empêche les barres de défilement */
 }
 
 #container {
   background-color: #333;
   padding: 20px;
   border-radius: 10px;
+  display: flex; /* Permet de placer les éléments côte à côte */
+  gap: 20px; /* Espace entre les éléments */
 }
 
 h1 {
@@ -52,18 +55,65 @@ button {
   margin-top: 20px;
   text-align: center;
 }
+
+#orientation {
+  width: 200px;
+  height: 200px;
+  border: 1px solid #0f0;
+  perspective: 500px; /* Pour la 3D */
+  margin-bottom: 20px;
+}
+
+#submarine {
+  width: 100px;
+  height: 50px;
+  background-color: #0f0;
+  position: relative;
+  top: 50%;
+  left: 50%;
+  transform-style: preserve-3d; /* Pour la 3D */
+  transform: translate(-50%, -50%);
+}
+
+#gamepad-view {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr); /* 4 colonnes */
+  gap: 5px;
+}
+
+.button {
+  width: 30px;
+  height: 30px;
+  background-color: #333;
+  border: 1px solid #0f0;
+  border-radius: 50%;
+}
+
+.pressed {
+  background-color: #0f0;
+}
 </style>
 </head>
 <body>
   <div id="container">
-    <h1>Contrôle du Sous-Marin</h1>
-    <label for="depth">Profondeur automatique:</label>
-    <input type="number" id="depth" value="0">
-    <button id="activate">Activer</button>
-    <button id="deactivate">Désactiver</button>
+    <div>
+      <h1>Contrôle du Sous-Marin</h1>
+      <label for="depth">Profondeur automatique:</label>
+      <input type="number" id="depth" value="0">
+      <button id="activate">Activer</button>
+      <button id="deactivate">Désactiver</button>
 
-    <div id="gamepad-info">
-      Manette non détectée
+      <div id="gamepad-info">
+        Manette non détectée
+      </div>
+    </div>
+
+    <div>
+      <div id="orientation">
+        <div id="submarine"></div>
+      </div>
+
+      <div id="gamepad-view"></div>
     </div>
   </div>
 
@@ -72,6 +122,9 @@ button {
     const activateButton = document.getElementById('activate');
     const deactivateButton = document.getElementById('deactivate');
     const gamepadInfo = document.getElementById('gamepad-info');
+    const orientationDiv = document.getElementById('orientation');
+    const submarineDiv = document.getElementById('submarine');
+    const gamepadView = document.getElementById('gamepad-view');
 
     let gamepadIndex = null;
     let depth = 0;
@@ -92,18 +145,40 @@ button {
     function pollGamepad() {
       if (gamepadIndex !== null) {
         const gamepad = navigator.getGamepads()[gamepadIndex];
-        // Ici, vous pouvez accéder aux axes et boutons de la manette
-        // par exemple: gamepad.axes[0] pour l'axe horizontal du joystick gauche
-        //             gamepad.buttons[0].pressed pour savoir si le bouton A est pressé
-
-        // Exemple de contrôle de la profondeur avec le joystick gauche :
+        
+        // Contrôle de la profondeur
         depth += gamepad.axes[1] * -0.1; // axe vertical inversé
         depthInput.value = depth.toFixed(2);
+
+        // Mettre à jour l'orientation du sous-marin
+        updateOrientation(gamepad);
+
+        // Mettre à jour la vue des boutons de la manette
+        updateGamepadView(gamepad);
 
         // Envoyer les commandes au sous-marin (à implémenter)
         sendCommandsToSubmarine({ depth, autopilot });
       }
       requestAnimationFrame(pollGamepad);
+    }
+
+    function updateOrientation(gamepad) {
+      const roll = gamepad.axes[0] * 20; // Inclinaison latérale
+      const pitch = gamepad.axes[1] * 20; // Inclinaison avant/arrière
+      submarineDiv.style.transform = `translate(-50%, -50%) rotateX(${pitch}deg) rotateY(${roll}deg)`;
+    }
+
+    function updateGamepadView(gamepad) {
+      gamepadView.innerHTML = ''; // Effacer les boutons précédents
+
+      for (let i = 0; i < gamepad.buttons.length; i++) {
+        const button = document.createElement('div');
+        button.classList.add('button');
+        if (gamepad.buttons[i].pressed) {
+          button.classList.add('pressed');
+        }
+        gamepadView.appendChild(button);
+      }
     }
 
     function sendCommandsToSubmarine(commands) {
