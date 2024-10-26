@@ -235,4 +235,53 @@ button {
       submarineDiv.style.transform = `translate(-50%, -50%) translateZ(<span class="math-inline">\{translateZ\}px\) rotateX\(</span>{pitch}deg) rotateY(${roll}deg)`;
 
       // Mettre à jour la position du point rouge
-      const x = (gamepad.axes[0] *
+      const x = (gamepad.axes[0] * 50) + 50; // axe horizontal (joystick gauche)
+      const y = (gamepad.axes[1] * -50) + 50; // axe vertical inversé (joystick gauche)
+      directionIndicator.style.left = `${x}%`;
+      directionIndicator.style.top = `${y}%`;
+    }
+
+    function updateGamepadView(gamepad) {
+      gamepadView.innerHTML = ''; // Effacer les boutons précédents
+
+      for (let i = 0; i < gamepad.buttons.length; i++) {
+        const button = document.createElement('div');
+        button.classList.add('button');
+        if (gamepad.buttons[i].pressed) {
+          button.classList.add('pressed');
+        }
+        gamepadView.appendChild(button);
+      }
+
+      // Allumer/éteindre les phares avec la touche Y (index 3 sur la manette Xbox)
+      const headlights = document.querySelector('.headlights');
+      if (gamepad.buttons[3].pressed && !headlightsOn) {
+        headlights.classList.remove('off');
+        headlightsOn = true;
+      } else if (!gamepad.buttons[3].pressed && headlightsOn) {
+        headlights.classList.add('off');
+        headlightsOn = false;
+      }
+    }
+
+    function sendCommandsToSubmarine(commands) {
+      // Ici, vous devez implémenter la communication avec le sous-marin
+      // par exemple, en utilisant WebSockets ou une API REST
+      console.log('Envoi des commandes au sous-marin:', commands);
+    }
+
+    activateButton.addEventListener('click', () => {
+      autopilot = true;
+      depth = parseFloat(depthInput.value);
+    });
+
+    deactivateButton.addEventListener('click', () => {
+      autopilot = false;
+    });
+
+    window.addEventListener('gamepadconnected', handleGamepadConnected);
+    window.addEventListener('gamepaddisconnected', handleGamepadDisconnected);
+    requestAnimationFrame(pollGamepad);
+  </script>
+</body>
+</html>
