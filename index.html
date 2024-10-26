@@ -159,10 +159,14 @@
       // Calcul de la vitesse avant/arrière
       forwardSpeed = -forwardInput * 5;
 
-      // Calcul des mouvements latéraux et avant/arrière en fonction de l'orientation
+      // Calcul des mouvements basés sur l'orientation du sous-marin
       const yawRad = currentRotation.yaw * (Math.PI / 180);
-      currentPosition.x += Math.cos(yawRad) * forwardSpeed + Math.sin(yawRad) * lateralInput * 3;
-      currentPosition.y += Math.sin(yawRad) * forwardSpeed - Math.cos(yawRad) * lateralInput * 3;
+      const sinYaw = Math.sin(yawRad);
+      const cosYaw = Math.cos(yawRad);
+
+      // Appliquer la translation en fonction de l'orientation
+      currentPosition.x += cosYaw * forwardSpeed + sinYaw * lateralInput * 3;
+      currentPosition.y += sinYaw * forwardSpeed - cosYaw * lateralInput * 3;
 
       // Calcul de la profondeur (altitude) en fonction de l'inclinaison (pitch)
       currentPosition.z += Math.sin(currentRotation.pitch * (Math.PI / 180)) * forwardSpeed;
