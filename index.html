@@ -1,173 +1,77 @@
-refait le code en l'améliorant car la commande du sous marin est trop comliqueées et il faut faire le soususmarin en 3d aussi : <!DOCTYPE html>
-
+<!DOCTYPE html>
 <html>
-
 <head>
-
-<title>Contrôle du Sous-Marin DJI Style (Manette Xbox)</title>
-
-<style>
-
-/* Styles identiques au code précédent, aucune modification nécessaire */
-
-</style>
-
+    <title>Contrôle du Sous-Marin DJI Style (Manette Xbox)</title>
+    <style>
+        /* Styles identiques au code précédent, aucune modification nécessaire */
+    </style>
 </head>
-
 <body>
-
-  <div id="container">
-
-    <div>
-
-      <div id="orientation">
-
-        <div class="scene">
-
-          <div class="reference-grid"></div>
-
-          <div id="submarine">
-
-            <div class="submarine-body"></div>
-
-            <div class="direction-arrow front-arrow"></div>
-
-            <div class="direction-arrow rear-arrow"></div>
-
-            <div class="headlights headlight-left"></div>
-
-            <div class="headlights headlight-right"></div>
-
-            <div class="light-beam"></div>
-
-          </div>
-
-          <div class="direction-indicator"></div>
-
-          <div class="hud-overlay">
-
-            <div class="attitude-indicator"></div>
-
-            <div class="speed-indicator">0 km/h</div>
-
-          </div>
-
-        </div>
-
-      </div>
-
-    </div>
-
-  </div>
-
-
-
-  <script>
-
-    // ... (Même code que précédemment jusqu'à la fonction updateSubmarine)
-
-
-
-    function updateSubmarine(gamepad) {
-
-      // Mapping des contrôles de la manette Xbox :
-
-      // Joystick gauche (axes 0 et 1) : Déplacement horizontal (yaw pour la rotation, axe 1 pour avant/arrière)
-
-      const yawInput = gamepad.axes[0];
-
-      const forwardInput = gamepad.axes[1];  // Avant/arrière
-
-
-
-      currentRotation.yaw += yawInput * 3;
-
-
-
-
-
-      // Joystick droit (axes 2 et 3) :  Pitch et Roll
-
-      const pitchInput = gamepad.axes[3]; // Haut/bas -> Pitch
-
-      const rollInput = gamepad.axes[2];  // Gauche/droite -> Roll
-
-
-
-      currentRotation.pitch = pitchInput * 30;
-
-      currentRotation.roll = rollInput * 30;
-
-
-
-      // Gâchette droite (RT, bouton 7) :  Monter (axe 5 sur certaines manettes)
-
-      // Gâchette gauche (LT, bouton 6) : Descendre (axe 4 sur certaines manettes)
-
-
-
-      const verticalSpeed = (gamepad.buttons[7].value - gamepad.buttons[6].value) * 2; //Monter/Descendre
-
-
-
-
-
-       // Calculer le mouvement en fonction de l'orientation et de l'input avant/arrière
-
-      const angle = (currentRotation.yaw - 90) * (Math.PI / 180);
-
-      const forwardSpeed = -forwardInput * 5; // Notez le signe négatif pour inverser l'axe Y
-
-
-
-
-
-      if (Math.abs(forwardSpeed) > 0.1) {
-
-          currentPosition.x += Math.cos(angle) * forwardSpeed;
-
-          currentPosition.y += Math.sin(angle) * forwardSpeed;
-
-
-
-          // Créer des bulles à l'arrière du sous-marin (adapter la position en fonction du forwardInput)
-
-          for (let i = 0; i < Math.abs(forwardSpeed) * 2; i++) {
-
-            createBubble(
-
-              currentPosition.x * 6 - Math.cos(angle) * 50,
-
-              currentPosition.y * 4 - Math.sin(angle) * 50,
-
-              Math.abs(forwardSpeed)
-
-            );
-
-          }
-
-        }
-
-
-
-
-
-
-
-      // Mettre à jour l'altitude avec verticalSpeed calculé plus haut
-
-      currentPosition.z += verticalSpeed;
-
-      currentPosition.z = Math.max(50, Math.min(150, currentPosition.z));
-
-
-
-      // ... (reste du code identique)
-
-
-
-  </script>
-
+    <div id="container">
+        <div id="orientation">
+            <div class="scene">
+                <div id="submarine"></div>
+                <div class="hud-overlay">
+                    <div class="attitude-indicator"></div>
+                    <div class="speed-indicator">0 km/h</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let scene, camera, renderer, submarine;
+        let currentRotation = { yaw: 0, pitch: 0, roll: 0 };
+
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById('submarine').appendChild(renderer.domElement);
+
+            const geometry = new THREE.BoxGeometry(1, 1, 3);
+            const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+            submarine = new THREE.Mesh(geometry, material);
+            scene.add(submarine);
+
+            camera.position.z = 5;
+
+            animate();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            submarine.rotation.x = currentRotation.pitch * Math.PI / 180;
+            submarine.rotation.y = currentRotation.yaw * Math.PI / 180;
+            submarine.rotation.z = currentRotation.roll * Math.PI / 180;
+            renderer.render(scene, camera);
+        }
+
+        function updateSubmarine(gamepad) {
+            const yawInput = gamepad.axes[0];
+            const forwardInput = gamepad.axes[1];
+            const pitchInput = gamepad.axes[3];
+            const rollInput = gamepad.axes[2];
+
+            currentRotation.yaw += yawInput * 3;
+            currentRotation.pitch = pitchInput * 30;
+            currentRotation.roll = rollInput * 30;
+
+            // Gâchettes pour monter/descendre
+            const ascendInput = gamepad.buttons[7].value;
+            const descendInput = gamepad.buttons[6].value;
+
+            submarine.position.y += (ascendInput - descendInput) * 0.1;
+        }
+
+        window.addEventListener('gamepadconnected', (event) => {
+            const gamepad = navigator.getGamepads()[event.gamepad.index];
+            setInterval(() => updateSubmarine(gamepad), 100);
+        });
+
+        init();
+    </script>
 </body>
-
 </html>
