@@ -14,7 +14,7 @@ body {
   height: 100vh;
   margin: 0;
   overflow: hidden;
-  perspective: 1000px; 
+  perspective: 1000px;
 }
 
 #container {
@@ -23,39 +23,7 @@ body {
   border-radius: 10px;
   display: flex;
   gap: 20px;
-  transform-style: preserve-3d; 
-}
-
-h1 {
-  text-align: center;
-  margin-bottom: 20px;
-}
-
-label {
-  display: block;
-  margin-bottom: 5px;
-}
-
-input[type="number"] {
-  width: 100px;
-  background-color: #000;
-  color: #0f0;
-  border: 1px solid #0f0;
-  padding: 5px;
-}
-
-button {
-  background-color: #0f0;
-  color: #000;
-  border: none;
-  padding: 10px 20px;
-  margin-top: 10px;
-  cursor: pointer;
-}
-
-#gamepad-info {
-  margin-top: 20px;
-  text-align: center;
+  transform-style: preserve-3d;
 }
 
 #orientation {
@@ -66,7 +34,7 @@ button {
   margin-bottom: 20px;
   position: relative;
   overflow: hidden;
-  transform-style: preserve-3d; 
+  transform-style: preserve-3d;
 }
 
 #submarine {
@@ -77,8 +45,24 @@ button {
   top: 50%;
   left: 50%;
   transform-style: preserve-3d;
-  transform: translate(-50%, -50%) translateZ(100px); 
-  transition: transform 0.1s ease; 
+  transform: translate(-50%, -50%) translateZ(100px);
+  transition: all 0.3s ease;
+  clip-path: polygon(0 40%, 20% 40%, 30% 0, 70% 0, 80% 40%, 100% 40%, 100% 60%, 80% 60%, 70% 100%, 30% 100%, 20% 60%, 0 60%);
+}
+
+.submarine-light {
+  position: absolute;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle at center, rgba(255,255,255,0.3) 0%, transparent 70%);
+  transform: translateZ(50px);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+#submarine.lights-on .submarine-light {
+  opacity: 1;
 }
 
 .direction-indicator {
@@ -87,42 +71,36 @@ button {
   background-color: red;
   border-radius: 50%;
   position: absolute;
-  top: 50%;
-  left: 50%;
   transform: translate(-50%, -50%);
+  box-shadow: 0 0 10px red;
+  animation: pulse 2s infinite;
 }
 
-#gamepad-view {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 5px;
-}
-
-.button {
-  width: 30px;
-  height: 30px;
-  background-color: #333;
-  border: 1px solid #0f0;
-  border-radius: 50%;
-}
-
-.pressed {
-  background-color: #0f0;
-}
-
-.headlights {
+.bubbles {
   position: absolute;
-  top: 10px;
-  left: 20px;
   width: 10px;
   height: 10px;
-  background-color: yellow;
+  background-color: rgba(255, 255, 255, 0.3);
   border-radius: 50%;
-  box-shadow: 60px 0 0 yellow;
+  pointer-events: none;
+  opacity: 0;
 }
 
-.headlights.off {
-  display: none;
+@keyframes pulse {
+  0% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.2); }
+  100% { transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes bubble {
+  0% {
+    transform: translate(0, 0) scale(0.5);
+    opacity: 0.7;
+  }
+  100% {
+    transform: translate(var(--tx), var(--ty)) scale(1.5);
+    opacity: 0;
+  }
 }
 
 .scene {
@@ -130,142 +108,150 @@ button {
   height: 100%;
   position: relative;
   transform-style: preserve-3d;
-  perspective-origin: center; 
+  perspective-origin: center;
+  background: linear-gradient(180deg, #000066 0%, #003366 100%);
+  overflow: hidden;
 }
 
-.background {
+.scene::before {
+  content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: url("https://source.unsplash.com/random/800x600/?underwater"); 
-  background-size: cover;
-  transform: translateZ(-200px); 
-  filter: blur(3px); 
+  width: 200%;
+  height: 200%;
+  top: -50%;
+  left: -50%;
+  background: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.8) 100%);
+  animation: waterMovement 20s infinite linear;
+}
+
+@keyframes waterMovement {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  100% { transform: translate(-20%, -20%) rotate(360deg); }
 }
 </style>
 </head>
 <body>
   <div id="container">
     <div>
-      <h1>Contrôle du Sous-Marin</h1>
-      <label for="depth">Profondeur automatique:</label>
-      <input type="number" id="depth" value="0">
-      <button id="activate">Activer</button>
-      <button id="deactivate">Désactiver</button>
-
-      <div id="gamepad-info">
-        Manette non détectée
-      </div>
-    </div>
-
-    <div>
       <div id="orientation">
         <div class="scene">
-          <div class="background"></div>
           <div id="submarine">
-            <div class="headlights off"></div>
+            <div class="submarine-light"></div>
           </div>
           <div class="direction-indicator"></div>
         </div>
       </div>
-
-      <div id="gamepad-view"></div>
     </div>
   </div>
 
   <script>
-    const depthInput = document.getElementById('depth');
-    const activateButton = document.getElementById('activate');
-    const deactivateButton = document.getElementById('deactivate');
-    const gamepadInfo = document.getElementById('gamepad-info');
-    const orientationDiv = document.getElementById('orientation');
-    const submarineDiv = document.getElementById('submarine');
-    const gamepadView = document.getElementById('gamepad-view');
-    const directionIndicator = document.querySelector('.direction-indicator');
-
     let gamepadIndex = null;
-    let depth = 0;
-    let autopilot = false;
-    let headlightsOn = false; 
+    let submarineDiv = document.getElementById('submarine');
+    let directionIndicator = document.querySelector('.direction-indicator');
+    let currentPosition = { x: 50, y: 50, z: 100 };
+    let targetPosition = { x: 50, y: 50 };
+    let headlightsOn = false;
 
-    function handleGamepadConnected(event) {
-      gamepadIndex = event.gamepad.index;
-      gamepadInfo.textContent = `Manette connectée (index ${gamepadIndex})`;
+    window.addEventListener("gamepadconnected", (e) => {
+      gamepadIndex = e.gamepad.index;
+      console.log("Manette connectée:", e.gamepad);
+    });
+
+    window.addEventListener("gamepaddisconnected", (e) => {
+      gamepadIndex = null;
+      console.log("Manette déconnectée");
+    });
+
+    function createBubble(x, y, speed) {
+      const bubble = document.createElement('div');
+      bubble.className = 'bubbles';
+      bubble.style.left = x + 'px';
+      bubble.style.top = y + 'px';
+      
+      // Random movement
+      const tx = (Math.random() - 0.5) * 100;
+      const ty = -100 - Math.random() * 50;
+      bubble.style.setProperty('--tx', `${tx}px`);
+      bubble.style.setProperty('--ty', `${ty}px`);
+      
+      bubble.style.animation = `bubble ${1 / speed}s ease-out forwards`;
+      
+      document.querySelector('.scene').appendChild(bubble);
+      setTimeout(() => bubble.remove(), 1000 / speed);
     }
 
-    function handleGamepadDisconnected(event) {
-      if (event.gamepad.index === gamepadIndex) {
-        gamepadIndex = null;
-        gamepadInfo.textContent = 'Manette déconnectée';
+    function moveTowardsTarget(current, target, speed) {
+      const dx = target.x - current.x;
+      const dy = target.y - current.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      if (distance > 0.1) {
+        current.x += (dx / distance) * speed;
+        current.y += (dy / distance) * speed;
+        return true;
+      }
+      return false;
+    }
+
+    function updateSubmarine(gamepad) {
+      // Mise à jour de la cible avec le joystick
+      targetPosition.x = (gamepad.axes[0] * 50) + 50;
+      targetPosition.y = (gamepad.axes[1] * -50) + 50;
+      
+      // Vitesse basée sur la gâchette droite (RT)
+      const speed = gamepad.buttons[7].value * 2;
+      
+      // Déplacement vers la cible
+      if (moveTowardsTarget(currentPosition, targetPosition, speed)) {
+        // Calculer l'angle de rotation pour faire face à la direction
+        const dx = targetPosition.x - currentPosition.x;
+        const dy = targetPosition.y - currentPosition.y;
+        const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+        
+        // Mise à jour de la position et rotation du sous-marin
+        submarineDiv.style.transform = `
+          translate(-50%, -50%)
+          translateX(${currentPosition.x}%)
+          translateY(${currentPosition.y}%)
+          translateZ(${currentPosition.z}px)
+          rotateZ(${angle + 90}deg)
+        `;
+        
+        // Créer des bulles si en mouvement
+        if (speed > 0.1) {
+          createBubble(
+            currentPosition.x * 4,
+            currentPosition.y * 3,
+            speed
+          );
+        }
+      }
+
+      // Mettre à jour la position du point rouge
+      directionIndicator.style.left = `${targetPosition.x}%`;
+      directionIndicator.style.top = `${targetPosition.y}%`;
+      
+      // Contrôle des phares (bouton Y)
+      if (gamepad.buttons[3].pressed && !headlightsOn) {
+        submarineDiv.classList.add('lights-on');
+        headlightsOn = true;
+      } else if (!gamepad.buttons[3].pressed && headlightsOn) {
+        submarineDiv.classList.remove('lights-on');
+        headlightsOn = false;
       }
     }
 
     function pollGamepad() {
       if (gamepadIndex !== null) {
         const gamepad = navigator.getGamepads()[gamepadIndex];
-
-        depth += gamepad.axes[1] * -0.1; 
-        depthInput.value = depth.toFixed(2);
-
-        updateSubmarine(gamepad);
-        updateGamepadView(gamepad);
-        sendCommandsToSubmarine({ depth, autopilot });
+        if (gamepad) {
+          updateSubmarine(gamepad);
+        }
       }
       requestAnimationFrame(pollGamepad);
     }
 
-    function updateSubmarine(gamepad) {
-      if (gamepad && gamepad.axes) { 
-        const roll = gamepad.axes[0] * 20; 
-        const pitch = gamepad.axes[1] * 20; 
-
-        let speed = gamepad.buttons[6].value * 5; 
-
-        let translateZ = parseFloat(submarineDiv.style.transform.match(/translateZ\((.*?)px\)/)[1]) - speed;
-
-        submarineDiv.style.transform = `translate(-50%, -50%) translateZ(<span class="math-inline">\{translateZ\}px\) rotateX\(</span>{pitch}deg) rotateY(${roll}deg)`;
-
-        const x = (gamepad.axes[0] * 50) + 50; 
-        const y = (gamepad.axes[1] * -50) + 50; 
-        directionIndicator.style.left = `${x}%`;
-        directionIndicator.style.top = `${y}%`;
-      }
-    }
-
-    function updateGamepadView(gamepad) {
-      gamepadView.innerHTML = ''; 
-
-      for (let i = 0; i < gamepad.buttons.length; i++) {
-        const button = document.createElement('div');
-        button.classList.add('button');
-        if (gamepad.buttons[i].pressed) {
-          button.classList.add('pressed');
-        }
-        gamepadView.appendChild(button);
-      }
-
-      const headlights = document.querySelector('.headlights');
-      if (gamepad.buttons[3].pressed && !headlightsOn) {
-        headlights.classList.remove('off');
-        headlightsOn = true;
-      } else if (!gamepad.buttons[3].pressed && headlightsOnfunction sendCommandsToSubmarine(commands) {
-      console.log('Envoi des commandes au sous-marin:', commands);
-    }
-
-    activateButton.addEventListener('click', () => {
-      autopilot = true;
-      depth = parseFloat(depthInput.value);
-    });
-
-    deactivateButton.addEventListener('click', () => {
-      autopilot = false;
-    });
-
-    window.addEventListener('gamepadconnected', handleGamepadConnected);
-    window.addEventListener('gamepaddisconnected', handleGamepadDisconnected);
-    requestAnimationFrame(pollGamepad);
+    pollGamepad();
   </script>
 </body>
 </html>
