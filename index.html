@@ -1,246 +1,295 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Roboto Mono', monospace;
-            transition: font-family 0.5s ease;
-            background-color: #000;
-            color: #fff;
-            overflow-x: hidden;
-            position: relative;
-        }
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
 
-        body.sci-fi {
-            font-family: 'Orbitron', sans-serif;
-        }
+    body {
+      background: linear-gradient(45deg, #1a1a2e, #16213e, #1a1a2e);
+      color: white;
+      min-height: 100vh;
+      perspective: 1000px;
+      overflow-x: hidden;
+    }
 
-        .section {
-            padding: 4rem 0;
-            position: relative;
-            z-index: 1;
-            border-radius: 2rem;
-            overflow: hidden;
-            background-color: rgba(0, 255, 0, 0.15); /* Transparent green background */
-        }
+    .background-effects {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      overflow: hidden;
+    }
 
-        .animate-scroll {
-            opacity: 0;
-            transform: translateY(20px);
-            transition: opacity 0.5s ease, transform 0.5s ease;
-        }
+    .bubble {
+      position: absolute;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.3), rgba(255,255,255,0.1));
+      box-shadow: 0 0 20px rgba(255,255,255,0.1);
+      backdrop-filter: blur(5px);
+      transform-style: preserve-3d;
+      animation: float 20s infinite linear;
+    }
 
-        .animate-scroll.in-view {
-            opacity: 1;
-            transform: translateY(0);
-        }
+    @keyframes float {
+      0% {
+        transform: translateZ(0) translateX(0) translateY(0) rotate(0deg);
+      }
+      33% {
+        transform: translateZ(100px) translateX(50px) translateY(-50px) rotate(120deg);
+      }
+      66% {
+        transform: translateZ(-50px) translateX(-30px) translateY(30px) rotate(240deg);
+      }
+      100% {
+        transform: translateZ(0) translateX(0) translateY(0) rotate(360deg);
+      }
+    }
 
-        .depth-effect {
-            background-color: rgba(255, 255, 255, 0.1);
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
-            transform: translateZ(-100px);
-            filter: blur(5px);
-            transition: transform 0.5s ease;
-        }
+    .depth-gradient {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at var(--x) var(--y), 
+        rgba(74, 144, 226, 0.3) 0%,
+        rgba(99, 179, 237, 0.1) 30%,
+        transparent 70%);
+      mix-blend-mode: overlay;
+      pointer-events: none;
+    }
 
-        .depth-effect.in-view {
-            transform: translateZ(-20px);
-        }
+    .navbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.5rem 4rem;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      position: fixed;
+      width: 100%;
+      z-index: 1000;
+      transform-style: preserve-3d;
+      transform: translateZ(50px);
+      box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    }
 
-        .container {
-            padding-top: 4rem;
-        }
+    .logo {
+      font-size: 1.5rem;
+      font-weight: bold;
+      background: linear-gradient(45deg, #fff, #a0a0a0);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
 
-        .container, .section {
-            background-color: #111; /* Dark background */
-        }
+    .nav-links a {
+      color: white;
+      text-decoration: none;
+      margin-left: 2rem;
+      transition: all 0.3s ease;
+      position: relative;
+    }
 
-        img {
-            border-radius: 1rem;
-        }
+    .nav-links a:hover {
+      color: #4a90e2;
+      transform: translateZ(20px);
+    }
 
-        .background-bubbles {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -2;
-            pointer-events: none; /* Allow scrolling through the bubbles */
-        }
+    .nav-links a::after {
+      content: '';
+      position: absolute;
+      bottom: -5px;
+      left: 0;
+      width: 0;
+      height: 2px;
+      background: #4a90e2;
+      transition: width 0.3s ease;
+    }
 
-        .bubble {
-            position: absolute;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(0, 255, 0, 0.7) 0%, rgba(0, 0, 0, 0.8) 100%);
-            box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
-            animation: bubble-animation 10s linear infinite;
-        }
+    .nav-links a:hover::after {
+      width: 100%;
+    }
 
-        .bubble-large {
-            width: 200px;
-            height: 200px;
-        }
+    .hero {
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      position: relative;
+      transform-style: preserve-3d;
+    }
 
-        .bubble-medium {
-            width: 100px;
-            height: 100px;
-        }
+    .hero-content {
+      z-index: 1;
+      transform: translateZ(100px);
+    }
 
-        .bubble-small {
-            width: 50px;
-            height: 50px;
-        }
+    .hero h1 {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+      opacity: 0;
+      animation: fadeUp 1s ease forwards;
+      text-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
 
-        @keyframes bubble-animation {
-            0% {
-                transform: translate(0, 0) scale(1);
-            }
-            50% {
-                transform: translate(10px, -10px) scale(1.1);
-            }
-            100% {
-                transform: translate(0, 0) scale(1);
-            }
-        }
-    </style>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    .hero p {
+      font-size: 1.2rem;
+      margin-bottom: 2rem;
+      opacity: 0;
+      animation: fadeUp 1s ease forwards 0.5s;
+    }
+
+    .cta-button {
+      padding: 1rem 2rem;
+      border: none;
+      border-radius: 30px;
+      background: linear-gradient(45deg, #4a90e2, #63b3ed);
+      color: white;
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      opacity: 0;
+      animation: fadeUp 1s ease forwards 1s;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+      transform-style: preserve-3d;
+    }
+
+    .cta-button:hover {
+      transform: translateY(-3px) translateZ(20px);
+      box-shadow: 0 15px 30px rgba(0,0,0,0.3);
+    }
+
+    .features {
+      padding: 6rem 4rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
+      background: rgba(255, 255, 255, 0.05);
+      position: relative;
+      transform-style: preserve-3d;
+    }
+
+    .feature-card {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      padding: 2rem;
+      border-radius: 15px;
+      text-align: center;
+      transition: all 0.3s ease;
+      transform-style: preserve-3d;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+
+    .feature-card:hover {
+      transform: translateY(-10px) translateZ(30px);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    }
+
+    .feature-icon {
+      width: 60px;
+      height: 60px;
+      margin: 0 auto 1rem;
+      transform: translateZ(20px);
+    }
+
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px) translateZ(0);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) translateZ(50px);
+      }
+    }
+
+    .scroll-indicator {
+      position: absolute;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      animation: bounce 2s infinite;
+      z-index: 2;
+    }
+
+    @keyframes bounce {
+      0%, 20%, 50%, 80%, 100% {
+        transform: translateY(0) translateZ(20px);
+      }
+      40% {
+        transform: translateY(-20px) translateZ(40px);
+      }
+      60% {
+        transform: translateY(-10px) translateZ(30px);
+      }
+    }
+  </style>
 </head>
-<body onscroll="handleScroll()">
-    <div class="background-bubbles">
-        <div class="bubble bubble-large" style="top: 10%; left: 20%;"></div>
-        <div class="bubble bubble-medium" style="top: 50%; left: 80%;"></div>
-        <div class="bubble bubble-small" style="top: 80%; left: 50%;"></div>
-        <!-- Add more bubbles as needed -->
+<body>
+  <div class="background-effects">
+    <div class="depth-gradient"></div>
+    <div class="bubble" style="width: 200px; height: 200px; top: 20%; left: 10%;"></div>
+    <div class="bubble" style="width: 150px; height: 150px; top: 60%; left: 70%;"></div>
+    <div class="bubble" style="width: 300px; height: 300px; top: 40%; left: 40%;"></div>
+    <div class="bubble" style="width: 100px; height: 100px; top: 80%; left: 20%;"></div>
+    <div class="bubble" style="width: 250px; height: 250px; top: 10%; left: 80%;"></div>
+  </div>
+
+  <nav class="navbar">
+    <div class="logo">Sport Academy</div>
+    <div class="nav-links">
+      <a href="#programmes">Programmes</a>
+      <a href="#coaches">Coaches</a>
+      <a href="#pricing">Tarifs</a>
+      <a href="#contact">Contact</a>
     </div>
-    <div class="container mx-auto px-4">
+  </nav>
 
-        <div class="section animate-scroll" id="intro">
-            <div class="depth-effect"></div> 
-            <h1 class="text-4xl font-bold mb-4">Introduction</h1>
-            <p class="text-lg mb-6">Dans ce projet, nous allons réaliser un générateur de fonctions. Notre circuit doit être réalisé sur une plaque d'expérimentation. Nous devons au minimum générer quatre signaux différents avec une tension de sortie de 1 [Vpp].</p>
-        </div>
-
-        <div class="section animate-scroll" id="theory">
-            <div class="depth-effect"></div> 
-            <h2 class="text-3xl font-bold mb-4">Élément théorique nécessaires à la compréhension :</h2>
-            <p class="text-lg mb-6">...</p>
-        </div>
-
-        <div class="section animate-scroll" id="tools">
-            <div class="depth-effect"></div> 
-            <h2 class="text-3xl font-bold mb-4">Outils et techniques</h2>
-            <h3 class="text-2xl font-bold mb-2">Outils nécessaires :</h3>
-            <ul class="list-disc pl-6 mb-6">
-                <li>Oscilloscope 2 pistes (Le model **TBS 1052B-EDU** a été utilisé dans notre cas)</li>
-                <li>Oscilloscope 15 pistes (Le model **AGILENT / HP 54622D** a été utilisé dans notre cas)</li>
-                <li>Sonde oscilloscope</li>
-                <li>Multimètre (Le model **Fluke 175** a été utilisé dans notre cas)</li>
-                <li>Alimentation stabilisée (Le model **ALR3003D** a été utilisé dans notre cas)</li>
-                <li>Câbles d’alimentation</li>
-            </ul>
-            <h3 class="text-2xl font-bold mb-2">Techniques :</h3>
-            <ul class="list-disc pl-6 mb-6">
-                <li>...</li>
-            </ul>
-        </div>
-
-        <div class="section animate-scroll" id="development">
-            <div class="depth-effect"></div> 
-            <h2 class="text-3xl font-bold mb-4">Développement</h2>
-            <h3 class="text-2xl font-bold mb-2">compteur(s) :</h3>
-            <p class="text-lg mb-6">Tout d’abord nous sommes partis sur un simple compteur 8 bits → le SN54HC590A nous avons donc réaliser le montage avec ce compteur créant ansi la base de notre générateur de fonctions pour le signal de clock nous avons utilisé un générateur de fonctions “externe” qui nous permettait de générer un signal de clock.</p>
-            <p class="text-lg mb-6">le compteur → SN54HC590A ne permettant pas de décompter il nous avons dût changer de compteur et nous avons pris le CD4029BC qui était dans notre matériel a disposition.</p>
-            <h4 class="text-xl font-bold mb-2">CD4029BC :</h4>
-            <p class="text-lg mb-6">Ce compteur est un compteur 4 Bit permettant de compter et décompter il possède aussi un carry IN (broche 5) et un carry out (broche 7)qui permet de contrôler des débordements → utile pour la suite. Nous avons alors mis 2 compteurs en série pour nous permettre de compter sur 8 bits comme demandé dans la consigne.</p>
-            <img src="https://prod-files-secure.s3.us-west-2.amazonaws.com/c82d80f1-33a0-4adf-9ba2-401f728076d1/b5cbdcc2-0707-40ee-a79b-1015fbdf3b4a/Untitled.png" alt="CD4029BC circuit diagram" class="rounded-md shadow-md mb-4">
-            <p class="text-lg mb-6">Une fois ce montage effectuer nous avons fait des mesure pour vérifier notre comptage:</p>
-            <img src="https://prod-files-secure.s3.us-west-2.amazonaws.com/c82d80f1-33a0-4adf-9ba2-401f728076d1/8f7af7f3-f15b-4f2f-a28b-e245e60bdcf0/SmartSelect_20240317_155107_Gallery.jpg" alt="CD4029BC output measurement" class="rounded-md shadow-md mb-4">
-            <p class="text-lg mb-6">→ se référer au rapport de mesure correspondant</p>
-            <h4 class="text-xl font-bold mb-2">Convertisseur Décimal → Analogique :</h4>
-            <p class="text-lg mb-6">Pour convertir notre (8 bit ) qui nous donnent une valeur entre 0 et 255 en signal analogique nous avons utilisé un convertisseur DA le model **DAC0808** le montage que nous avons effectuer est le suivant étant donner que le **DAC0808** nous donne une sortie en courant nous avons dût utiliser un ampli op pour faire transformateur courant/tension.</p>
-            <img src="https://prod-files-secure.s3.us-west-2.amazonaws.com/c82d80f1-33a0-4adf-9ba2-401f728076d1/60592901-324d-4033-9c96-578e6bf92b10/Untitled.png" alt="DAC0808 circuit diagram" class="rounded-md shadow-md mb-4">
-            <h4 class="text-xl font-bold mb-2">Problème bruit signal :</h4>
-            <p class="text-lg mb-6">En mesurant notre signal de sortie de l’ampli OP nous nous somme rendu compte que le signal était bruité après avoir effectuer un rapport de dépannage nous en sommes venu a la conclusion que la cause de notre problèmes était en fait qu’il manquait un condensateur de découplage.</p>
-            <img src="https://prod-files-secure.s3.us-west-2.amazonaws.com/c82d80f1-33a0-4adf-9ba2-401f728076d1/35f3ddbe-9213-4eb3-a3f4-b03da7a5e183/F0019TEK.BMP" alt="Signal without decoupling capacitor" class="rounded-md shadow-md mb-4">
-            <p class="text-lg mb-6">*mesure sans condensateur de découplage.*</p>
-            <img src="https://prod-files-secure.s3.us-west-2.amazonaws.com/c82d80f1-33a0-4adf-9ba2-401f728076d1/6df28e22-2264-476d-8912-8d93fe607798/Untitled.bmp" alt="Signal with decoupling capacitor" class="rounded-md shadow-md mb-4">
-            <p class="text-lg mb-6">*mesure avec condensateur de découplage:*</p>
-            <p class="text-lg mb-6">→ se référer au rapport de mesure et dépannage correscpondant.</p>
-            <aside class="bg-gray-800 p-4 rounded-md mb-4">
-                <h4 class="text-lg font-bold mb-2">💡 malgrès le fait que les deux mesures n’ont pas été faite avec la même fréquence la différence est clairement visible surtout dans des fréquences un peut plus élevée.</h4>
-            </aside>
-            <ul class="list-disc pl-6 mb-6">
-                <li class="mb-2">[x]  générer un signal en dent de scie.</li>
-            </ul>
-            <h4 class="text-xl font-bold mb-2">Signal triangulaire :</h4>
-            <p class="text-lg mb-6">Pour générer un signal triangulaire nous avons utiliser les fonctions carry IN et carry OUT de nos deux compteurs 4 bit → **CD4029BC** pour vérifier si le compteur arrive a 255 (en valeur binaire) ils nous a suiffit de comparer le signal carryout du deuxième compteur. </p>
-            <img src="https://prod-files-secure.s3.us-west-2.amazonaws.com/c82d80f1-33a0-4adf-9ba2-401f728076d1/c4187446-6a71-4ea8-99a6-0591c2446dbe/Untitled.png" alt="Triangular wave circuit diagram" class="rounded-md shadow-md mb-4">
-            <h4 class="text-xl font-bold mb-2">Signal carré :</h4>
-            <p class="text-lg mb-6">Nous pouvons prendre le signal carré a différent endroit, comme par exemple : le signal de clock,le sigal UP/DOWN, ou encore  le signal carryout(compteur N°2 ). Nous avons décidés de prendre le signal UP/DOWN pour simplifier notre circuit.</p>
-            <aside class="bg-gray-800 p-4 rounded-md mb-4">
-                <h4 class="text-lg font-bold mb-2">💡 Note: la mesure a été effectuée avant que le montage soit terminé le signal n’est donc pas encore offseté et l’amplitude est incorrect par rapport à la consigne.</h4>
-            </aside>
-            <img src="https://prod-files-secure.s3.us-west-2.amazonaws.com/c82d80f1-33a0-4adf-9ba2-401f728076d1/18e8679e-50cd-49c3-aa77-1e8e4ca6574f/Untitled.bmp" alt="Square wave output measurement" class="rounded-md shadow-md mb-4">
-            <h4 class="text-xl font-bold mb-2">Signal PWM :</h4>
-            <p class="text-lg mb-6">Pour générer un signal PWM nous somme partis du signal triangulaire. Avec un ampli OP alimenté en +5V et -5V nous avons “créer” un trigger de schmitt dont nous pouvons définir le trigger avec un jeu de deux potentiomètre. La raison pour laquelle nous avons utilisé deux potentiomètre est que sans les deux potentiomètre il était difficile de régler précisément nos largeur d’impulsions. Avec deux potentiomètre de valeurs différentes nous pouvons donc avoir deux niveaux de précision pour le réglage.</p>
-            <img src="https://prod-files-secure.s3.us-west-2.amazonaws.com/c82d80f1-33a0-4adf-9ba2-401f728076d1/18dba0a3-195d-4c24-8f75-b6c7c5f12f6e/Untitled.png" alt="PWM circuit diagram" class="rounded-md shadow-md mb-4">
-            <h4 class="text-xl font-bold mb-2">Contrôle avec DipSwitch :</h4>
-            <p class="text-lg mb-6">Pour contrôler quel signal nous désirons en sortie, nous avons utilisé un DipSwitch qui permet de sélectionner les signaux.</p>
-            <img src="https://prod-files-secure.s3.us-west-2.amazonaws.com/c82d80f1-33a0-4adf-9ba2-401f728076d1/2cbb3aaa-6eb2-42e0-a3d4-2497db318935/Untitled.png" alt="DipSwitch circuit diagram" class="rounded-md shadow-md mb-4">
-            <h4 class="text-xl font-bold mb-2">Offset et amplification Sortie :</h4>
-            <p class="text-lg mb-6">Pour aligner parfaitement le signaux et régler leur amplitude a 1[Vpp]. Nous avons utiliser des Ampli-OP.</p>
-            <img src="https://prod-files-secure.s3.us-west-2.amazonaws.com/c82d80f1-33a0-4adf-9ba2-401f728076d1/5472b6d1-a110-438c-b905-67efd5a81f3a/Untitled.png" alt="Offset and amplification circuit diagram" class="rounded-md shadow-md mb-4">
-            <p class="text-lg mb-6">Pour réaliser cette partie nous nous sommes inspirés du circuit vu en classe, lors du précédent module de dépannage. Il permet d’offseter notre signal. Il nous permet également de régler l’amplitude finale de notre signal.</p>
-            <ul class="list-disc pl-6 mb-6">
-                <li class="mb-2">**Réglage de l'offset** :
-                    - Le potentiomètre (R5) ajuste le niveau d'offset du signal.
-                    - Les résistances R5 et R6, avec le potentiomètre, forment un diviseur de tension qui permet de régler le niveau de tension continu qui sera ajouté ou soustrait du signal pour décaler son niveau.
-                    - L'amplificateur opérationnel U3 est configuré en tant que suiveur de tension, il permet donc de fournir un offset sans influencer la charge du circuit précédent.
-                </li>
-                <li class="mb-2">**Amplification** :
-                    - Le second amplificateur opérationnel U5 est utilisé comme amplificateur non-inverseur.
-                </li>
-            </ul>
-            <h4 class="text-xl font-bold mb-2">Le signal de clock :</h4>
-            <p class="text-lg mb-6">Jusqu’à maintenant nous utilisions un générateur de fonctions pour générer le signal de clock. Nous avons donc dût créer un signal de clock pour cela nous avons utilisé un trigger de schmitt le **74HC14** .</p>
-            <img src="https://prod-files-secure.s3.us-west-2.amazonaws.com/c82d80f1-33a0-4adf-9ba2-401f728076d1/48538185-1f91-4ffe-b684-e2162ce2056f/Untitled.png" alt="Clock signal circuit diagram" class="rounded-md shadow-md mb-4">
-            <h5 class="text-lg font-bold mb-2">Explication :</h5>
-            <p class="text-lg mb-6">L'oscillation se produit parce que le condensateur se charge à travers la résistance jusqu'à ce qu'il atteigne le seuil haut du trigger de Schmitt, à ce moment la sortie de la porte inverseuse bascule de haut à bas. Le condensateur commence alors à se décharger à travers la résistance jusqu'à ce qu'il atteigne le seuil bas du trigger de Schmitt, et la sortie de la porte bascule de nouveau de bas en haut. Ce cycle de chargement et déchargement se répète, créant ainsi un signal d'horloge stable (signal de clock).</p>
-        </div>
-
+  <section class="hero">
+    <div class="hero-content">
+      <h1>Dépassez Vos Limites</h1>
+      <p>Rejoignez notre académie pour une expérience sportive d'excellence</p>
+      <button class="cta-button">Commencer Maintenant</button>
     </div>
-    <script>
-        function handleScroll() {
-            const sections = document.querySelectorAll('.animate-scroll');
-            sections.forEach(section => {
-                const rect = section.getBoundingClientRect();
-                if (rect.top < window.innerHeight * 0.8) {
-                    section.classList.add('in-view');
-                    section.querySelector('.depth-effect').classList.add('in-view');
-                } else {
-                    section.classList.remove('in-view');
-                    section.querySelector('.depth-effect').classList.remove('in-view');
-                }
-            });
+    <div class="scroll-indicator">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 5v14M5 12l7 7 7-7"/>
+      </svg>
+    </div>
+  </section>
 
-            // Change font when scrolling past the first section
-            if (window.scrollY > document.getElementById('intro').offsetTop) {
-                document.body.classList.add('sci-fi');
-            } else {
-                document.body.classList.remove('sci-fi');
-            }
-        }
-    </script>
+  <section class="features">
+    <div class="feature-card">
+      <img src="/api/placeholder/60/60" alt="Entraînement personnalisé" class="feature-icon">
+      <h3>Entraînement Personnalisé</h3>
+      <p>Des programmes adaptés à vos objectifs et votre niveau</p>
+    </div>
+    <div class="feature-card">
+      <img src="/api/placeholder/60/60" alt="Coaches experts" class="feature-icon">
+      <h3>Coaches Experts</h3>
+      <p>Une équipe de professionnels passionnés et qualifiés</p>
+    </div>
+    <div class="feature-card">
+      <img src="/api/placeholder/60/60" alt="Installations modernes" class="feature-icon">
+      <h3>Installations Modernes</h3>
+      <p>Des équipements de pointe pour des performances optimales</p>
+    </div>
+  </section>
+
+  <script>
+    document.addEventListener('mousemove', (e) => {
+      const depth = document.querySelector('.depth-gradient');
+      const x = e.clientX / window.innerWidth * 100;
+      const y = e.clientY / window.innerHeight * 100;
+      depth.style.setProperty('--x', `${x}%`);
+      depth.style.setProperty('--y', `${y}%`);
+    });
+  </script>
 </body>
 </html>
-
