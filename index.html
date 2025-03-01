@@ -26,16 +26,27 @@
             margin-top: 20px;
             font-size: 18px;
         }
+        #video-container { /* Ajout d'un conteneur pour la vidéo */
+            margin-top: 20px;
+            width: 640px; /* Largeur de la vidéo */
+            height: 480px; /* Hauteur de la vidéo */
+            margin-left: auto;
+            margin-right: auto;
+        }
     </style>
 </head>
 <body>
 
     <h1>Test du sous-marin</h1>
     <p>Cette page permet de vérifier si le site et l'API fonctionnent correctement.</p>
-    
+
     <button onclick="testAPI()">Tester l'API</button>
-    
+
     <p id="result">Clique sur le bouton pour tester.</p>
+
+    <div id="video-container">
+        <video id="video-stream" width="640" height="480" autoplay controls></video>
+    </div>
 
     <script>
         function testAPI() {
@@ -48,6 +59,10 @@
                 document.getElementById("result").innerText = "Erreur de connexion à l'API";
             });
         }
+
+		// JavaScript pour le streaming vidéo (MJPEG)
+        const video = document.getElementById('video-stream');
+        video.src = "http://" + window.location.hostname + ":8888";
     </script>
 
 </body>
