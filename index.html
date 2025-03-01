@@ -2,68 +2,30 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Test du sous-marin</title>
+    <title>Contrôle du Sous-Marin</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            margin-top: 50px;
-        }
-        button {
-            background-color: #008CBA;
-            color: white;
-            padding: 15px 20px;
-            font-size: 16px;
-            border: none;
-            cursor: pointer;
-            border-radius: 5px;
-        }
-        button:hover {
-            background-color: #005f73;
-        }
-        #result {
-            margin-top: 20px;
-            font-size: 18px;
-        }
-        #video-container { /* Ajout d'un conteneur pour la vidéo */
-            margin-top: 20px;
-            width: 640px; /* Largeur de la vidéo */
-            height: 480px; /* Hauteur de la vidéo */
-            margin-left: auto;
-            margin-right: auto;
-        }
+      body { font-family: sans-serif; }
     </style>
 </head>
 <body>
-
-    <h1>Test du sous-marin</h1>
-    <p>Cette page permet de vérifier si le site et l'API fonctionnent correctement.</p>
-
-    <button onclick="testAPI()">Tester l'API</button>
-
-    <p id="result">Clique sur le bouton pour tester.</p>
-
-    <div id="video-container">
-        <video id="video-stream" width="640" height="480" autoplay controls></video>
-    </div>
+    <h1>Contrôle du Sous-Marin</h1>
+    <img src="http://localhost:8089/?action=stream" width="640" height="480" alt="Flux vidéo">
+        <p>
+        <button onclick="testAPI()">Tester l'API</button>
+        <span id="api-result"></span>
+    </p>
 
     <script>
         function testAPI() {
             fetch("http://" + window.location.hostname + ":5000/test")
             .then(response => response.json())
             .then(data => {
-                document.getElementById("result").innerText = "Réponse API : " + data.status;
+                document.getElementById("api-result").textContent = "API: " + data.status;
             })
             .catch(error => {
-                document.getElementById("result").innerText = "Erreur de connexion à l'API";
+                document.getElementById("api-result").textContent = "Erreur API";
             });
         }
-
-		// JavaScript pour le streaming vidéo (MJPEG)
-        const video = document.getElementById('video-stream');
-        video.src = "http://" + window.location.hostname + ":8888";
     </script>
-
 </body>
 </html>
