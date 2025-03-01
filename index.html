@@ -1,295 +1,54 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
-
-    body {
-      background: linear-gradient(45deg, #1a1a2e, #16213e, #1a1a2e);
-      color: white;
-      min-height: 100vh;
-      perspective: 1000px;
-      overflow-x: hidden;
-    }
-
-    .background-effects {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: -1;
-      overflow: hidden;
-    }
-
-    .bubble {
-      position: absolute;
-      border-radius: 50%;
-      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.3), rgba(255,255,255,0.1));
-      box-shadow: 0 0 20px rgba(255,255,255,0.1);
-      backdrop-filter: blur(5px);
-      transform-style: preserve-3d;
-      animation: float 20s infinite linear;
-    }
-
-    @keyframes float {
-      0% {
-        transform: translateZ(0) translateX(0) translateY(0) rotate(0deg);
-      }
-      33% {
-        transform: translateZ(100px) translateX(50px) translateY(-50px) rotate(120deg);
-      }
-      66% {
-        transform: translateZ(-50px) translateX(-30px) translateY(30px) rotate(240deg);
-      }
-      100% {
-        transform: translateZ(0) translateX(0) translateY(0) rotate(360deg);
-      }
-    }
-
-    .depth-gradient {
-      position: absolute;
-      width: 100%;
-      height: 100%;
-      background: radial-gradient(circle at var(--x) var(--y), 
-        rgba(74, 144, 226, 0.3) 0%,
-        rgba(99, 179, 237, 0.1) 30%,
-        transparent 70%);
-      mix-blend-mode: overlay;
-      pointer-events: none;
-    }
-
-    .navbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 1.5rem 4rem;
-      background: rgba(255, 255, 255, 0.1);
-      backdrop-filter: blur(10px);
-      position: fixed;
-      width: 100%;
-      z-index: 1000;
-      transform-style: preserve-3d;
-      transform: translateZ(50px);
-      box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-    }
-
-    .logo {
-      font-size: 1.5rem;
-      font-weight: bold;
-      background: linear-gradient(45deg, #fff, #a0a0a0);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .nav-links a {
-      color: white;
-      text-decoration: none;
-      margin-left: 2rem;
-      transition: all 0.3s ease;
-      position: relative;
-    }
-
-    .nav-links a:hover {
-      color: #4a90e2;
-      transform: translateZ(20px);
-    }
-
-    .nav-links a::after {
-      content: '';
-      position: absolute;
-      bottom: -5px;
-      left: 0;
-      width: 0;
-      height: 2px;
-      background: #4a90e2;
-      transition: width 0.3s ease;
-    }
-
-    .nav-links a:hover::after {
-      width: 100%;
-    }
-
-    .hero {
-      height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      position: relative;
-      transform-style: preserve-3d;
-    }
-
-    .hero-content {
-      z-index: 1;
-      transform: translateZ(100px);
-    }
-
-    .hero h1 {
-      font-size: 4rem;
-      margin-bottom: 1rem;
-      opacity: 0;
-      animation: fadeUp 1s ease forwards;
-      text-shadow: 0 5px 15px rgba(0,0,0,0.3);
-    }
-
-    .hero p {
-      font-size: 1.2rem;
-      margin-bottom: 2rem;
-      opacity: 0;
-      animation: fadeUp 1s ease forwards 0.5s;
-    }
-
-    .cta-button {
-      padding: 1rem 2rem;
-      border: none;
-      border-radius: 30px;
-      background: linear-gradient(45deg, #4a90e2, #63b3ed);
-      color: white;
-      font-size: 1.1rem;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      opacity: 0;
-      animation: fadeUp 1s ease forwards 1s;
-      box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-      transform-style: preserve-3d;
-    }
-
-    .cta-button:hover {
-      transform: translateY(-3px) translateZ(20px);
-      box-shadow: 0 15px 30px rgba(0,0,0,0.3);
-    }
-
-    .features {
-      padding: 6rem 4rem;
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 2rem;
-      background: rgba(255, 255, 255, 0.05);
-      position: relative;
-      transform-style: preserve-3d;
-    }
-
-    .feature-card {
-      background: rgba(255, 255, 255, 0.1);
-      backdrop-filter: blur(10px);
-      padding: 2rem;
-      border-radius: 15px;
-      text-align: center;
-      transition: all 0.3s ease;
-      transform-style: preserve-3d;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-    }
-
-    .feature-card:hover {
-      transform: translateY(-10px) translateZ(30px);
-      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-    }
-
-    .feature-icon {
-      width: 60px;
-      height: 60px;
-      margin: 0 auto 1rem;
-      transform: translateZ(20px);
-    }
-
-    @keyframes fadeUp {
-      from {
-        opacity: 0;
-        transform: translateY(20px) translateZ(0);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0) translateZ(50px);
-      }
-    }
-
-    .scroll-indicator {
-      position: absolute;
-      bottom: 2rem;
-      left: 50%;
-      transform: translateX(-50%);
-      animation: bounce 2s infinite;
-      z-index: 2;
-    }
-
-    @keyframes bounce {
-      0%, 20%, 50%, 80%, 100% {
-        transform: translateY(0) translateZ(20px);
-      }
-      40% {
-        transform: translateY(-20px) translateZ(40px);
-      }
-      60% {
-        transform: translateY(-10px) translateZ(30px);
-      }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test du sous-marin</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+        }
+        button {
+            background-color: #008CBA;
+            color: white;
+            padding: 15px 20px;
+            font-size: 16px;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #005f73;
+        }
+        #result {
+            margin-top: 20px;
+            font-size: 18px;
+        }
+    </style>
 </head>
 <body>
-  <div class="background-effects">
-    <div class="depth-gradient"></div>
-    <div class="bubble" style="width: 200px; height: 200px; top: 20%; left: 10%;"></div>
-    <div class="bubble" style="width: 150px; height: 150px; top: 60%; left: 70%;"></div>
-    <div class="bubble" style="width: 300px; height: 300px; top: 40%; left: 40%;"></div>
-    <div class="bubble" style="width: 100px; height: 100px; top: 80%; left: 20%;"></div>
-    <div class="bubble" style="width: 250px; height: 250px; top: 10%; left: 80%;"></div>
-  </div>
 
-  <nav class="navbar">
-    <div class="logo">Sport Academy</div>
-    <div class="nav-links">
-      <a href="#programmes">Programmes</a>
-      <a href="#coaches">Coaches</a>
-      <a href="#pricing">Tarifs</a>
-      <a href="#contact">Contact</a>
-    </div>
-  </nav>
+    <h1>Test du sous-marin</h1>
+    <p>Cette page permet de vérifier si le site et l'API fonctionnent correctement.</p>
+    
+    <button onclick="testAPI()">Tester l'API</button>
+    
+    <p id="result">Clique sur le bouton pour tester.</p>
 
-  <section class="hero">
-    <div class="hero-content">
-      <h1>Dépassez Vos Limites</h1>
-      <p>Rejoignez notre académie pour une expérience sportive d'excellence</p>
-      <button class="cta-button">Commencer Maintenant</button>
-    </div>
-    <div class="scroll-indicator">
-      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M12 5v14M5 12l7 7 7-7"/>
-      </svg>
-    </div>
-  </section>
+    <script>
+        function testAPI() {
+            fetch("http://" + window.location.hostname + ":5000/test")
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("result").innerText = "Réponse API : " + data.status;
+            })
+            .catch(error => {
+                document.getElementById("result").innerText = "Erreur de connexion à l'API";
+            });
+        }
+    </script>
 
-  <section class="features">
-    <div class="feature-card">
-      <img src="/api/placeholder/60/60" alt="Entraînement personnalisé" class="feature-icon">
-      <h3>Entraînement Personnalisé</h3>
-      <p>Des programmes adaptés à vos objectifs et votre niveau</p>
-    </div>
-    <div class="feature-card">
-      <img src="/api/placeholder/60/60" alt="Coaches experts" class="feature-icon">
-      <h3>Coaches Experts</h3>
-      <p>Une équipe de professionnels passionnés et qualifiés</p>
-    </div>
-    <div class="feature-card">
-      <img src="/api/placeholder/60/60" alt="Installations modernes" class="feature-icon">
-      <h3>Installations Modernes</h3>
-      <p>Des équipements de pointe pour des performances optimales</p>
-    </div>
-  </section>
-
-  <script>
-    document.addEventListener('mousemove', (e) => {
-      const depth = document.querySelector('.depth-gradient');
-      const x = e.clientX / window.innerWidth * 100;
-      const y = e.clientY / window.innerHeight * 100;
-      depth.style.setProperty('--x', `${x}%`);
-      depth.style.setProperty('--y', `${y}%`);
-    });
-  </script>
 </body>
 </html>
