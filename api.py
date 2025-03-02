@@ -9,9 +9,11 @@ CORS(app)
 
 def is_camera_connected():
     try:
-        # Check for video devices in /dev/
-        video_devices = [f for f in os.listdir('/dev/') if f.startswith('video')]
-        return len(video_devices) > 0
+        # Check the status of the mjpg-streamer service
+        result = subprocess.run(['systemctl', 'is-active', 'mjpg-streamer'], capture_output=True, text=True)
+        return result.stdout.strip() == 'active'
+    except subprocess.CalledProcessError:
+        return False
     except FileNotFoundError:
         return False
 
