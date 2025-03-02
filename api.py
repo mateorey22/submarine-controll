@@ -9,16 +9,11 @@ CORS(app)
 
 def is_camera_connected():
     try:
-        # Run v4l2-ctl command to list devices
-        result = subprocess.run(['v4l2-ctl', '--list-devices'], capture_output=True, text=True, check=True)
-        # Check if any device is listed
-        return "Cannot open device" not in result.stdout
-    except subprocess.CalledProcessError:
-        return False
+        # Check for video devices in /dev/
+        video_devices = [f for f in os.listdir('/dev/') if f.startswith('video')]
+        return len(video_devices) > 0
     except FileNotFoundError:
-        # v4l2-ctl is not installed
         return False
-
 
 @app.route('/api/test', methods=['GET'])
 def test_api():
