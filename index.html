@@ -9,44 +9,117 @@
 <body>
     <h1>Panneau de Contrôle</h1>
 
-    <h2>Flux Vidéo</h2>
-    <input type="text" id="videoIpInput" value="192.168.1.130" placeholder="Adresse IP du flux vidéo">
-    <button id="updateStreamButton">Ouvrir le flux</button>
-    <br>
+    <section id="api-test">
+        <h2>Test API</h2>
+        <button id="testApiButton">Tester l'API</button>
+        <p id="apiResponse"></p>
+    </section>
 
-    <button id="testApiButton">Tester l'API</button>
-    <p id="apiResponse"></p>
+    <section id="system-info">
+        <h2>Informations Système</h2>
+        <p>Température CPU: <span id="cpuTemperature"></span></p>
+        <p>Utilisation CPU: <span id="cpuUsage"></span>%</p>
+        <p>Mémoire RAM:</p>
+        <ul>
+            <li>Total: <span id="ramTotal"></span></li>
+            <li>Utilisée: <span id="ramUsed"></span></li>
+            <li>Disponible: <span id="ramAvailable"></span></li>
+            <li>Pourcentage: <span id="ramPercent"></span>%</li>
+        </ul>
+    </section>
+
+    <section id="ping-test">
+        <h2>Test de Ping</h2>
+        <label for="ipAddress">Adresse IP:</label>
+        <input type="text" id="ipAddress" name="ipAddress">
+        <button id="pingButton">Ping</button>
+        <p id="pingResult"></p>
+    </section>
 
     <script>
-        const videoIpInput = document.getElementById('videoIpInput');
-        const updateStreamButton = document.getElementById('updateStreamButton');
-
-        function openVideoStream() {
-            const ipAddress = videoIpInput.value;
-            const streamUrl = `http://${ipAddress}:8080/?action=stream`;
-            window.open(streamUrl, '_blank', 'width=640,height=480');
-        }
-
-        updateStreamButton.addEventListener('click', openVideoStream);
-
+        // --- API Test ---
         const testApiButton = document.getElementById('testApiButton');
         const apiResponse = document.getElementById('apiResponse');
 
         testApiButton.addEventListener('click', async () => {
             try {
-                const response = await fetch('/api/test'); // Appelle l'API
-                const data = await response.json();       // Analyse la réponse JSON
+                const response = await fetch('/api/test');
+                const data = await response.json();
 
                 if (response.ok) {
                     apiResponse.textContent = `Réponse de l'API: ${data.message}`;
                 } else {
                     apiResponse.textContent = `Erreur API: ${data.error}`;
                 }
-
             } catch (error) {
                 apiResponse.textContent = `Erreur lors de la requête: ${error}`;
             }
         });
+
+        // --- System Info ---
+        const cpuTemperature = document.getElementById('cpuTemperature');
+        const cpuUsage = document.getElementById('cpuUsage');
+        const ramTotal = document.getElementById('ramTotal');
+        const ramUsed = document.getElementById('ramUsed');
+        const ramAvailable = document.getElementById('ramAvailable');
+        const ramPercent = document.getElementById('ramPercent');
+
+        async function updateSystemInfo() {
+            try {
+                const response = await fetch('/api/system_info');
+                const data = await response.json();
+
+                if (response.ok) {
+                    cpuTemperature.textContent = data.cpu_temperature;
+                    cpuUsage.textContent = data.cpu_usage;
+                    ramTotal.textContent = data.memory_usage.total;
+                    ramUsed.textContent = data.memory_usage.used;
+                    ramAvailable.textContent = data.memory_usage.available;
+                    ramPercent.textContent = data.memory_usage.percent;
+                } else {
+                    console.error('Erreur lors de la récupération des informations système:', data.error);
+                }
+            } catch (error) {
+                console.error('Erreur lors de la récupération des informations système:', error);
+            }
+        }
+
+        // --- Ping Test ---
+        const ipAddressInput = document.getElementById('ipAddress');
+        const pingButton = document.getElementById('pingButton');
+        const pingResult = document.getElementById('pingResult');
+
+        pingButton.addEventListener('click', async () => {
+            const ipAddress = ipAddressInput.value;
+            pingResult.textContent = `Ping en cours...`;
+
+            try {
+                const response = await fetch('/api/ping', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ ip_address: ipAddress })
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                  if(data.status === "OK"){
+                    pingResult.textContent = `Ping ${data.ip_address}: ${data.status}, Temps: ${data.ping_time_ms} ms`;
+                  } else if (data.status === "KO" || data.status === "Timeout"){
+                    pingResult.textContent = `Ping ${data.ip_address}: ${data.status}, Erreur: ${data.error}`;
+                  }
+                } else {
+                    pingResult.textContent = `Erreur API: ${data.error}`;
+                }
+            } catch (error) {
+                pingResult.textContent = `Erreur lors de la requête: ${error}`;
+            }
+        });
+
+        // --- Initial Update and Interval ---
+        updateSystemInfo(); // Mettre à jour les informations système au chargement de la page
+        setInterval(updateSystemInfo, 5000); // Mettre à jour les informations système toutes les 5 secondes
     </script>
 </body>
 </html>
