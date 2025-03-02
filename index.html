@@ -1,55 +1,52 @@
 <!DOCTYPE html>
-    <html lang="fr">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Contrôle Sous-Marin</title>
-        <link rel="stylesheet" href="/static/style.css">
-    </head>
-    <body>
-        <h1>Panneau de Contrôle</h1>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contrôle Sous-Marin</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <h1>Panneau de Contrôle</h1>
 
-        <h2>Flux Vidéo</h2>
-        <input type="text" id="videoIpInput" value="192.168.1.130" placeholder="Adresse IP du flux vidéo">
-        <button id="updateStreamButton">Mettre à jour le flux</button>
-        <br>
-        <video id="videoStream" width="640" height="480" autoplay muted controls></video>
+    <h2>Flux Vidéo</h2>
+    <input type="text" id="videoIpInput" value="192.168.1.130" placeholder="Adresse IP du flux vidéo">
+    <button id="updateStreamButton">Ouvrir le flux</button>
+    <br>
 
-        <button id="testApiButton">Tester l'API</button>
-        <p id="apiResponse"></p>
+    <button id="testApiButton">Tester l'API</button>
+    <p id="apiResponse"></p>
 
-        <script>
-            const videoIpInput = document.getElementById('videoIpInput');
-            const updateStreamButton = document.getElementById('updateStreamButton');
-            const videoStream = document.getElementById('videoStream');
+    <script>
+        const videoIpInput = document.getElementById('videoIpInput');
+        const updateStreamButton = document.getElementById('updateStreamButton');
 
-            function updateVideoStream() {
-                const ipAddress = videoIpInput.value;
-                const streamUrl = `http://${ipAddress}:8080/?action=stream`;
-                videoStream.src = streamUrl;
-            }
+        function openVideoStream() {
+            const ipAddress = videoIpInput.value;
+            const streamUrl = `http://${ipAddress}:8080/?action=stream`;
+            window.open(streamUrl, '_blank', 'width=640,height=480');
+        }
 
-            updateStreamButton.addEventListener('click', updateVideoStream);
-            updateVideoStream(); // Initialisation du flux vidéo
+        updateStreamButton.addEventListener('click', openVideoStream);
 
-            const testApiButton = document.getElementById('testApiButton');
-            const apiResponse = document.getElementById('apiResponse');
+        const testApiButton = document.getElementById('testApiButton');
+        const apiResponse = document.getElementById('apiResponse');
 
-            testApiButton.addEventListener('click', async () => {
-                try {
-                    const response = await fetch('/api/test'); // Appelle l'API
-                    const data = await response.json();       // Analyse la réponse JSON
+        testApiButton.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/test'); // Appelle l'API
+                const data = await response.json();       // Analyse la réponse JSON
 
-                    if (response.ok) {
-                        apiResponse.textContent = `Réponse de l'API: ${data.message}`;
-                    } else {
-                        apiResponse.textContent = `Erreur API: ${data.error}`;
-                    }
-
-                } catch (error) {
-                    apiResponse.textContent = `Erreur lors de la requête: ${error}`;
+                if (response.ok) {
+                    apiResponse.textContent = `Réponse de l'API: ${data.message}`;
+                } else {
+                    apiResponse.textContent = `Erreur API: ${data.error}`;
                 }
-            });
-        </script>
-    </body>
-    </html>
+
+            } catch (error) {
+                apiResponse.textContent = `Erreur lors de la requête: ${error}`;
+            }
+        });
+    </script>
+</body>
+</html>

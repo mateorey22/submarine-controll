@@ -1,0 +1,58 @@
+body {
+  font-family: Arial, sans-serif;
+  background-color: #f4f4f4;
+  color: #333;
+  margin: 0;
+  padding: 20px;
+}
+
+h1 {
+  color: #446688;
+  text-align: center;
+}
+
+h2 {
+  margin-top: 30px;
+  color: #557799;
+}
+
+input[type="text"], button {
+  padding: 10px 15px;
+  margin: 5px 0;
+  border: 1px solid #ddd;
+  border-radius: 5px; /* Rounded corners */
+  box-sizing: border-box;
+}
+
+button {
+  background-color: #5cb85c;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+button:hover {
+  background-color: #4cae4c;
+}
+
+#videoIpInput {
+  width: 200px;
+}
+
+#updateStreamButton {
+    background-color:#4CAF50;
+}
+
+#testApiButton{
+    background-color:#008CBA;
+}
+
+p#apiResponse {
+  margin-top: 10px;
+  padding: 10px;
+  background-color: #eee;
+  border-radius: 5px;
+  min-height: 20px;
+  border: 1px solid #ddd;
+}
