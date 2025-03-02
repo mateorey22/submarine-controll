@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contrôle Sous-Marin</title>
+    <link rel="stylesheet" href="/static/style.css"> </link>
+</head>
+<body>
+    <h1>Panneau de Contrôle</h1>
+
+    <button id="testApiButton">Tester l'API</button>
+    <p id="apiResponse"></p>
+
+    <script>
+        const testApiButton = document.getElementById('testApiButton');
+        const apiResponse = document.getElementById('apiResponse');
+
+        testApiButton.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/test'); // Appelle l'API
+                const data = await response.json();       // Analyse la réponse JSON
+
+                if (response.ok) {
+                    apiResponse.textContent = `Réponse de l'API: ${data.message}`;
+                } else {
+                    apiResponse.textContent = `Erreur API: ${data.error}`;
+                }
+
+            } catch (error) {
+                apiResponse.textContent = `Erreur lors de la requête: ${error}`;
+            }
+        });
+    </script>
+</body>
+</html>
