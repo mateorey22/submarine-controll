@@ -2,20 +2,10 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 import psutil
 import os
-import subprocess
+import requests
 
 app = Flask(__name__)
 CORS(app)
-
-def is_camera_connected():
-    try:
-        # Check the status of the mjpg-streamer service
-        result = subprocess.run(['systemctl', 'is-active', 'mjpg-streamer'], capture_output=True, text=True)
-        return result.stdout.strip() == 'active'
-    except subprocess.CalledProcessError:
-        return False
-    except FileNotFoundError:
-        return False
 
 @app.route('/api/test', methods=['GET'])
 def test_api():
@@ -35,10 +25,19 @@ def get_system_info():
         'disk_space': disk_space
     })
 
-@app.route('/api/camera/status', methods=['GET'])
-def get_camera_status():
-    status = is_camera_connected()
-    return jsonify({'connected': status})
+@app.route('/api/camera/status')
+def camera_status():
+    try:
+        response = requests.get('http://localhost:8080/?action=stream', stream=True, timeout=5)
+        response.raise_for_status()  # Lève une exception si le code HTTP n'est pas 200 OK
+        #On verifie que le content type est bien celui attendu.
+        if 'multipart/x-mixed-replace' in response.headers['Content-Type']:
+            return jsonify({'status': 'OK', 'message': 'Stream is available'})
+        else:
+            return jsonify({'status': 'Error', 'message': 'Unexpected content type'}), 500
+
+    except requests.exceptions.RequestException as e:
+        return jsonify({'status': 'Error', 'message': f'Stream unavailable: {e}'}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0')
+    app.run(debug=True, host='0.0.0.0', port=5000)
