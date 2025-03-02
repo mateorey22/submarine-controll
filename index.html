@@ -1,36 +1,55 @@
 <!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contrôle Sous-Marin</title>
-    <link rel="stylesheet" href="/static/style.css"> </link>
-</head>
-<body>
-    <h1>Panneau de Contrôle</h1>
+    <html lang="fr">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Contrôle Sous-Marin</title>
+        <link rel="stylesheet" href="/static/style.css">
+    </head>
+    <body>
+        <h1>Panneau de Contrôle</h1>
 
-    <button id="testApiButton">Tester l'API</button>
-    <p id="apiResponse"></p>
+        <h2>Flux Vidéo</h2>
+        <input type="text" id="videoIpInput" value="192.168.1.130" placeholder="Adresse IP du flux vidéo">
+        <button id="updateStreamButton">Mettre à jour le flux</button>
+        <br>
+        <video id="videoStream" width="640" height="480" autoplay muted controls></video>
 
-    <script>
-        const testApiButton = document.getElementById('testApiButton');
-        const apiResponse = document.getElementById('apiResponse');
+        <button id="testApiButton">Tester l'API</button>
+        <p id="apiResponse"></p>
 
-        testApiButton.addEventListener('click', async () => {
-            try {
-                const response = await fetch('/api/test'); // Appelle l'API
-                const data = await response.json();       // Analyse la réponse JSON
+        <script>
+            const videoIpInput = document.getElementById('videoIpInput');
+            const updateStreamButton = document.getElementById('updateStreamButton');
+            const videoStream = document.getElementById('videoStream');
 
-                if (response.ok) {
-                    apiResponse.textContent = `Réponse de l'API: ${data.message}`;
-                } else {
-                    apiResponse.textContent = `Erreur API: ${data.error}`;
-                }
-
-            } catch (error) {
-                apiResponse.textContent = `Erreur lors de la requête: ${error}`;
+            function updateVideoStream() {
+                const ipAddress = videoIpInput.value;
+                const streamUrl = `http://${ipAddress}:8080/?action=stream`;
+                videoStream.src = streamUrl;
             }
-        });
-    </script>
-</body>
-</html>
+
+            updateStreamButton.addEventListener('click', updateVideoStream);
+            updateVideoStream(); // Initialisation du flux vidéo
+
+            const testApiButton = document.getElementById('testApiButton');
+            const apiResponse = document.getElementById('apiResponse');
+
+            testApiButton.addEventListener('click', async () => {
+                try {
+                    const response = await fetch('/api/test'); // Appelle l'API
+                    const data = await response.json();       // Analyse la réponse JSON
+
+                    if (response.ok) {
+                        apiResponse.textContent = `Réponse de l'API: ${data.message}`;
+                    } else {
+                        apiResponse.textContent = `Erreur API: ${data.error}`;
+                    }
+
+                } catch (error) {
+                    apiResponse.textContent = `Erreur lors de la requête: ${error}`;
+                }
+            });
+        </script>
+    </body>
+    </html>
