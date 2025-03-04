@@ -3,24 +3,9 @@ from flask_cors import CORS
 import psutil
 import os
 import requests
-import pygame
 
 app = Flask(__name__)
 CORS(app)
-
-pygame.init()
-pygame.joystick.init()
-
-def get_gamepad_status():
-    try:
-        if pygame.joystick.get_count() > 0:
-            joystick = pygame.joystick.Joystick(0)
-            joystick.init()
-            return "Gamepad Connected"
-        else:
-            return "Gamepad Not Connected"
-    except Exception as e:
-        return f"Error: {e}"
 
 @app.route('/api/test', methods=['GET'])
 def test_api():
@@ -53,11 +38,6 @@ def camera_status():
 
     except requests.exceptions.RequestException as e:
         return jsonify({'status': 'Error', 'message': f'Stream unavailable: {e}'}), 500
-
-@app.route('/api/gamepad/status')
-def gamepad_status():
-    status = get_gamepad_status()
-    return jsonify({'status': status})
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
