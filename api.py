@@ -39,26 +39,5 @@ def camera_status():
     except requests.exceptions.RequestException as e:
         return jsonify({'status': 'Error', 'message': f'Stream unavailable: {e}'}), 500
 
-@app.route('/api/weather')
-def get_weather():
-    try:
-        city = "Paris"  # You can make this a parameter later
-        api_key = "670281e8848593c12ea8f0cbb24c2005"  # Replace with your actual API key
-        url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
-        response = requests.get(url)
-        response.raise_for_status()
-        data = response.json()
-
-        weather_data = {
-            'temperature': data['main']['temp'],
-            'description': data['weather'][0]['description'],
-            'wind_speed': data['wind']['speed'],
-            'wind_direction': data['wind']['deg'],
-            'icon': data['weather'][0]['icon'],
-        }
-        return jsonify({'status': 'OK', 'data': weather_data})
-    except requests.exceptions.RequestException as e:
-        return jsonify({'status': 'Error', 'message': f'Weather API error: {e}'}), 500
-
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
