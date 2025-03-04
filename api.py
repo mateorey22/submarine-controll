@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 import psutil
 import os
@@ -6,6 +6,8 @@ import requests
 
 app = Flask(__name__)
 CORS(app)
+
+gamepad_data = {}
 
 @app.route('/api/test', methods=['GET'])
 def test_api():
@@ -38,6 +40,15 @@ def camera_status():
 
     except requests.exceptions.RequestException as e:
         return jsonify({'status': 'Error', 'message': f'Stream unavailable: {e}'}), 500
+
+@app.route('/api/gamepad', methods=['GET', 'POST'])
+def get_gamepad_data():
+    if request.method == 'POST':
+        global gamepad_data
+        gamepad_data = request.get_json()
+        return jsonify({'status': 'OK', 'message': 'Gamepad data received'})
+    else:
+        return jsonify(gamepad_data)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
