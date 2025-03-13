@@ -1,11 +1,27 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 import psutil
 import os
 import requests
+import RPi.GPIO as GPIO  # Import the RPi.GPIO library
 
 app = Flask(__name__)
 CORS(app)
+
+# Set the GPIO pin number
+MOTOR_PIN = 18
+
+# Set the GPIO mode
+GPIO.setmode(GPIO.BCM)
+
+# Set the GPIO pin as an output
+GPIO.setup(MOTOR_PIN, GPIO.OUT)
+
+# Create a PWM instance
+pwm = GPIO.PWM(MOTOR_PIN, 100)  # 100 Hz frequency
+
+# Start PWM with 0% duty cycle
+pwm.start(0)
 
 @app.route('/api/test', methods=['GET'])
 def test_api():
@@ -38,6 +54,20 @@ def camera_status():
 
     except requests.exceptions.RequestException as e:
         return jsonify({'status': 'Error', 'message': f'Stream unavailable: {e}'}), 500
+
+@app.route('/api/motor/speed', methods=['POST'])
+def set_motor_speed():
+    speed = request.get_json().get('speed')
+    if speed is None:
+        return jsonify({'status': 'Error', 'message': 'Speed parameter is required'}), 400
+
+    # Limit the speed to be between 0 and 100
+    speed = max(0, min(100, speed))
+
+    # Set the duty cycle
+    pwm.ChangeDutyCycle(speed)
+
+    return jsonify({'status': 'OK', 'message': f'Motor speed set to {speed}%'})
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
