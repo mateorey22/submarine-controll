@@ -4,6 +4,10 @@ import psutil
 import os
 import requests
 import RPi.GPIO as GPIO  # Import the RPi.GPIO library
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 app = Flask(__name__)
 CORS(app)
@@ -11,17 +15,25 @@ CORS(app)
 # Set the GPIO pin number
 MOTOR_PIN = 18
 
-# Set the GPIO mode
-GPIO.setmode(GPIO.BCM)
+try:
+    # Set the GPIO mode
+    GPIO.setmode(GPIO.BCM)
 
-# Set the GPIO pin as an output
-GPIO.setup(MOTOR_PIN, GPIO.OUT)
+    # Set the GPIO pin as an output
+    GPIO.setup(MOTOR_PIN, GPIO.OUT)
 
-# Create a PWM instance
-pwm = GPIO.PWM(MOTOR_PIN, 100)  # 100 Hz frequency
+    # Create a PWM instance
+    pwm = GPIO.PWM(MOTOR_PIN, 100)  # 100 Hz frequency
 
-# Start PWM with 0% duty cycle
-pwm.start(0)
+    # Start PWM with 0% duty cycle
+    pwm.start(0)
+
+    logging.info("GPIO initialized successfully")
+
+except Exception as e:
+    logging.error(f"Error initializing GPIO: {e}")
+    # Handle the error appropriately, e.g., by disabling the motor control functionality
+    pwm = None  # Set pwm to None to indicate that it's not available
 
 @app.route('/api/test', methods=['GET'])
 def test_api():
@@ -64,10 +76,13 @@ def set_motor_speed():
     # Limit the speed to be between 0 and 100
     speed = max(0, min(100, speed))
 
-    # Set the duty cycle
-    pwm.ChangeDutyCycle(speed)
-
-    return jsonify({'status': 'OK', 'message': f'Motor speed set to {speed}%'})
+    try:
+        # Set the duty cycle
+        pwm.ChangeDutyCycle(speed)
+        return jsonify({'status': 'OK', 'message': f'Motor speed set to {speed}%'})
+    except Exception as e:
+        logging.error(f"Error setting motor speed: {e}")
+        return jsonify({'status': 'Error', 'message': f'Error setting motor speed: {e}'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
