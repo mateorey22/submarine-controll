@@ -52,7 +52,7 @@ def motor_control():
     if request.method == 'POST':
         start = request.form.get('start')
         if start == 'true':
-            pwm_motor.ChangeDutyCycle(2.5)  # Vitesse minimale (environ 1000µs)
+            pwm_motor.ChangeDutyCycle(5)  # Vitesse minimale (environ 1000µs)
             return jsonify({'status': 'OK', 'message': 'Motor started at minimum speed'})
         elif start == 'false':
             pwm_motor.ChangeDutyCycle(0)  # Arrêt du moteur
