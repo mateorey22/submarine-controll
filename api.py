@@ -3,22 +3,9 @@ from flask_cors import CORS
 import psutil
 import os
 import requests
-import RPi.GPIO as GPIO
-import time
 
 app = Flask(__name__)
 CORS(app)
-
-# Configuration du GPIO pour le PWM
-GPIO.setmode(GPIO.BCM)
-MOTOR_PIN = 18  # Pin GPIO pour le contrôle du moteur (PWM)
-GPIO.setup(MOTOR_PIN, GPIO.OUT)
-
-# Configuration du PWM
-pwm_motor = GPIO.PWM(MOTOR_PIN, 50)  # Fréquence de 50 Hz
-pwm_motor.start(0)  # Démarrage avec un cycle d'utilisation de 0 (moteur arrêté)
-
-motor_on = False
 
 @app.route('/api/test', methods=['GET'])
 def test_api():
@@ -49,19 +36,8 @@ def camera_status():
         else:
             return jsonify({'status': 'Error', 'message': 'Unexpected content type'}), 500
 
-@app.route('/api/motor/toggle', methods=['POST'])
-def motor_toggle():
-    global motor_on
-    motor_on = not motor_on
-    if motor_on:
-        pwm_motor.ChangeDutyCycle(5)  # Vitesse minimale (environ 1000µs)
-        return jsonify({'status': 'OK', 'message': 'Motor started'})
-    else:
-        pwm_motor.ChangeDutyCycle(0)  # Arrêt du moteur
-        return jsonify({'status': 'OK', 'message': 'Motor stopped'})
+    except requests.exceptions.RequestException as e:
+        return jsonify({'status': 'Error', 'message': f'Stream unavailable: {e}'}), 500
 
 if __name__ == '__main__':
-    try:
-        app.run(debug=True, host='0.0.0.0', port=5000)
-    finally:
-        GPIO.cleanup()
+    app.run(debug=True, host='0.0.0.0', port=5000)
