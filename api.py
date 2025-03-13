@@ -40,6 +40,13 @@ except Exception as e:
     logging.error(f"Error initializing GPIO: {e}")
     # Handle the error appropriately, e.g., by disabling the motor control functionality
     pwm = None  # Set pwm to None to indicate that it's not available
+else:
+    # Change the PWM frequency to 50 Hz
+    try:
+        pwm.ChangeFrequency(50)
+        logging.info("PWM frequency changed to 50 Hz")
+    except Exception as e:
+        logging.error(f"Error changing PWM frequency: {e}")
 
 @app.route('/api/test', methods=['GET'])
 def test_api():
