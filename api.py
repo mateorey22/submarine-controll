@@ -95,7 +95,9 @@ def set_motor_speed():
 
     try:
         # Set the duty cycle
+        logging.info(f"Setting motor speed to {speed}%")
         pwm.ChangeDutyCycle(speed)
+        logging.info(f"Motor speed set to {speed}% successfully")
         return jsonify({'status': 'OK', 'message': f'Motor speed set to {speed}%'})
     except Exception as e:
         logging.error(f"Error setting motor speed: {e}")
