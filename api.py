@@ -15,18 +15,24 @@ CORS(app)
 # Set the GPIO pin number
 MOTOR_PIN = 18
 
+pwm = None  # Initialize pwm to None
+
 try:
     # Set the GPIO mode
     GPIO.setmode(GPIO.BCM)
+    logging.info("GPIO mode set to BCM")
 
     # Set the GPIO pin as an output
     GPIO.setup(MOTOR_PIN, GPIO.OUT)
+    logging.info(f"GPIO pin {MOTOR_PIN} set as output")
 
     # Create a PWM instance
     pwm = GPIO.PWM(MOTOR_PIN, 100)  # 100 Hz frequency
+    logging.info("PWM instance created")
 
     # Start PWM with 0% duty cycle
     pwm.start(0)
+    logging.info("PWM started with 0% duty cycle")
 
     logging.info("GPIO initialized successfully")
 
@@ -75,6 +81,10 @@ def set_motor_speed():
 
     # Limit the speed to be between 0 and 100
     speed = max(0, min(100, speed))
+
+    if pwm is None:
+        logging.error("PWM is not initialized")
+        return jsonify({'status': 'Error', 'message': 'PWM is not initialized'}), 500
 
     try:
         # Set the duty cycle
