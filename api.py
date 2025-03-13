@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify
 from flask_cors import CORS
 import psutil
 import os
@@ -17,6 +17,8 @@ GPIO.setup(MOTOR_PIN, GPIO.OUT)
 # Configuration du PWM
 pwm_motor = GPIO.PWM(MOTOR_PIN, 50)  # Fréquence de 50 Hz
 pwm_motor.start(0)  # Démarrage avec un cycle d'utilisation de 0 (moteur arrêté)
+
+motor_on = False
 
 @app.route('/api/test', methods=['GET'])
 def test_api():
@@ -47,26 +49,19 @@ def camera_status():
         else:
             return jsonify({'status': 'Error', 'message': 'Unexpected content type'}), 500
 
-@app.route('/api/motor/control', methods=['POST'])
-def motor_control():
-    if request.method == 'POST':
-        start = request.form.get('start')
-        if start == 'true':
-            pwm_motor.ChangeDutyCycle(5)  # Vitesse minimale (environ 1000µs)
-            return jsonify({'status': 'OK', 'message': 'Motor started at minimum speed'})
-        elif start == 'false':
-            pwm_motor.ChangeDutyCycle(0)  # Arrêt du moteur
-            return jsonify({'status': 'OK', 'message': 'Motor stopped'})
-        else:
-            return jsonify({'status': 'Error', 'message': 'Invalid parameter'}), 400
+@app.route('/api/motor/toggle', methods=['POST'])
+def motor_toggle():
+    global motor_on
+    motor_on = not motor_on
+    if motor_on:
+        pwm_motor.ChangeDutyCycle(5)  # Vitesse minimale (environ 1000µs)
+        return jsonify({'status': 'OK', 'message': 'Motor started'})
     else:
-        return jsonify({'status': 'Error', 'message': 'Invalid method'}), 405
-
-    except Exception as e:
-        return jsonify({'status': 'Error', 'message': str(e)}), 500
+        pwm_motor.ChangeDutyCycle(0)  # Arrêt du moteur
+        return jsonify({'status': 'OK', 'message': 'Motor stopped'})
 
 if __name__ == '__main__':
     try:
         app.run(debug=True, host='0.0.0.0', port=5000)
     finally:
-        GPIO.cleanup()  # Nettoyage des GPIO à la fermeture
+        GPIO.cleanup()
