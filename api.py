@@ -1,20 +1,14 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify
 from flask_cors import CORS
 import psutil
 import os
 import requests
 from gpiozero import PWMOutputDevice
-from time import sleep
 
 app = Flask(__name__)
 CORS(app)
 
-# Configuration du moteur avec gpiozero
-try:
-    motor = PWMOutputDevice(18, frequency=100, initial_value=0)
-except Exception as e:
-    print(f"Erreur d'initialisation du moteur: {e}")
-    motor = None
+pwm_pin = PWMOutputDevice(18)
 
 @app.route('/api/test', methods=['GET'])
 def test_api():
@@ -38,7 +32,8 @@ def get_system_info():
 def camera_status():
     try:
         response = requests.get('http://localhost:8080/?action=stream', stream=True, timeout=5)
-        response.raise_for_status()
+        response.raise_for_status()  # Lève une exception si le code HTTP n'est pas 200 OK
+        #On verifie que le content type est bien celui attendu.
         if 'multipart/x-mixed-replace' in response.headers['Content-Type']:
             return jsonify({'status': 'OK', 'message': 'Stream is available'})
         else:
@@ -47,43 +42,12 @@ def camera_status():
     except requests.exceptions.RequestException as e:
         return jsonify({'status': 'Error', 'message': f'Stream unavailable: {e}'}), 500
 
-@app.route('/api/motor/on', methods=['POST'])
-def turn_motor_on():
-    try:
-        if motor is None:
-            return jsonify({'status': 'error', 'message': 'Motor not initialized'}), 500
-        motor.value = 0.1  # 10% de puissance
-        return jsonify({'status': 'success', 'message': 'Motor turned on'}), 200
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/motor/off', methods=['POST'])
-def turn_motor_off():
-    try:
-        if motor is None:
-            return jsonify({'status': 'error', 'message': 'Motor not initialized'}), 500
-        motor.value = 0
-        return jsonify({'status': 'success', 'message': 'Motor turned off'}), 200
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/motor/speed', methods=['POST'])
-def set_motor_speed():
-    try:
-        if motor is None:
-            return jsonify({'status': 'error', 'message': 'Motor not initialized'}), 500
-        speed = request.json.get('speed', 0)
-        if 0 <= speed <= 100:
-            motor.value = speed / 100.0  # Conversion en valeur entre 0 et 1
-            return jsonify({'status': 'success', 'message': f'Motor speed set to {speed}%'}), 200
-        else:
-            return jsonify({'status': 'error', 'message': 'Speed must be between 0 and 100'}), 400
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+@app.route('/api/motor/pwm', methods=['POST'])
+def set_motor_pwm():
+    from flask import request
+    pwm_value = request.get_json().get('pwm')
+    pwm_pin.value = float(pwm_value)
+    return jsonify({'status': 'OK', 'message': f'PWM set to {pwm_value}'})
 
 if __name__ == '__main__':
-    try:
-        app.run(debug=True, host='0.0.0.0', port=5000)
-    finally:
-        if motor is not None:
-            motor.close()  # Nettoyage propre du moteur
+    app.run(debug=True, host='0.0.0.0', port=5000)
