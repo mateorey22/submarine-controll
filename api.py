@@ -39,20 +39,6 @@ def camera_status():
     except requests.exceptions.RequestException as e:
         return jsonify({'status': 'Error', 'message': f'Stream unavailable: {e}'}), 500
 
-from gpiozero import PWMOutputDevice
-from time import sleep
-
-# Définir le GPIO pour le PWM
-pwm_device = PWMOutputDevice(18)  # GPIO 18
-
-# Régle le rapport cyclique à 50 %
-pwm_device.value = 0.1
-
-try:
-    while True:
-        sleep(1)
-except KeyboardInterrupt:
-    pwm_device.off()
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
