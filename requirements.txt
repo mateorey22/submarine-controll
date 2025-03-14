@@ -2,4 +2,4 @@ Flask
 Flask-Cors
 psutil
 requests
-RPi.GPIO
+pigpio
