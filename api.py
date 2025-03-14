@@ -5,18 +5,31 @@ import os
 import requests
 import RPi.GPIO as GPIO
 import time
+import os
 
 app = Flask(__name__)
 CORS(app)
 
 # Configuration du GPIO pour le PWM
 ESC_PIN = 18  # Broche GPIO 18 (vous pouvez changer cela)
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(ESC_PIN, GPIO.OUT)
-pwm = GPIO.PWM(ESC_PIN, 50)  # Fréquence de 50 Hz (standard pour les ESC)
 
-# Démarrage du PWM à mi-vitesse
-pwm.start(7.5)  # Cycle de service de 7.5% pour mi-vitesse (peut nécessiter un ajustement)
+# Détection de Raspberry Pi
+if os.uname()[4].startswith("arm"):
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(ESC_PIN, GPIO.OUT)
+    pwm = GPIO.PWM(ESC_PIN, 50)  # Fréquence de 50 Hz (standard pour les ESC)
+
+    # Démarrage du PWM à mi-vitesse
+    pwm.start(7.5)  # Cycle de service de 7.5% pour mi-vitesse (peut nécessiter un ajustement)
+else:
+    # Mock PWM object
+    class MockPWM:
+        def start(self, duty_cycle):
+            print(f"Mock PWM start with duty cycle: {duty_cycle}")
+        def stop(self):
+            print("Mock PWM stop")
+
+    pwm = MockPWM()
 
 @app.route('/api/test', methods=['GET'])
 def test_api():
@@ -55,4 +68,5 @@ if __name__ == '__main__':
         app.run(debug=True, host='0.0.0.0', port=5000)
     finally:
         pwm.stop()
-        GPIO.cleanup() #nettoyage des GPIO.
+        if os.uname()[4].startswith("arm"):
+            GPIO.cleanup() #nettoyage des GPIO.
