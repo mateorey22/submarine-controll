@@ -3,12 +3,14 @@ from flask_cors import CORS
 import psutil
 import os
 import requests
-from gpiozero import PWMOutputDevice
+from gpiozero import PWMLED
+
+# Initialize PWM on GPIO 18
+pwm_signal = PWMLED(18)
+pwm_signal.value = 0  # Start with PWM off
 
 app = Flask(__name__)
 CORS(app)
-
-pwm_pin = PWMOutputDevice(18)
 
 @app.route('/api/test', methods=['GET'])
 def test_api():
@@ -41,13 +43,6 @@ def camera_status():
 
     except requests.exceptions.RequestException as e:
         return jsonify({'status': 'Error', 'message': f'Stream unavailable: {e}'}), 500
-
-@app.route('/api/motor/pwm', methods=['POST'])
-def set_motor_pwm():
-    from flask import request
-    pwm_value = request.get_json().get('pwm')
-    pwm_pin.value = float(pwm_value)
-    return jsonify({'status': 'OK', 'message': f'PWM set to {pwm_value}'})
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
