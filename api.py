@@ -8,7 +8,7 @@ import requests
 app = Flask(__name__)
 CORS(app)
 
-ESC = 4  # Connect the ESC in this GPIO pin
+ESC = 18  # Connect the ESC in this GPIO pin
 
 # Initialize pigpio
 IS_RPI = False
