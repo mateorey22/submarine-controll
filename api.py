@@ -3,9 +3,20 @@ from flask_cors import CORS
 import psutil
 import os
 import requests
+import RPi.GPIO as GPIO
+import time
 
 app = Flask(__name__)
 CORS(app)
+
+# Configuration du GPIO pour le PWM
+ESC_PIN = 18  # Broche GPIO 18 (vous pouvez changer cela)
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(ESC_PIN, GPIO.OUT)
+pwm = GPIO.PWM(ESC_PIN, 50)  # Fréquence de 50 Hz (standard pour les ESC)
+
+# Démarrage du PWM à mi-vitesse
+pwm.start(7.5)  # Cycle de service de 7.5% pour mi-vitesse (peut nécessiter un ajustement)
 
 @app.route('/api/test', methods=['GET'])
 def test_api():
@@ -40,4 +51,8 @@ def camera_status():
         return jsonify({'status': 'Error', 'message': f'Stream unavailable: {e}'}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    try:
+        app.run(debug=True, host='0.0.0.0', port=5000)
+    finally:
+        pwm.stop()
+        GPIO.cleanup() #nettoyage des GPIO.
