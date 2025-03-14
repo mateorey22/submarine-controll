@@ -1,7 +1,5 @@
-Flask==3.0.0
-Flask
+Flask>=3.0.0  # Allow 3.0.0 or any later compatible version
+Flask-CORS==4.0.0  # Pin Flask-CORS to a specific version
 RPi.GPIO
 requests
 psutil
-Flask-CORS==4.0.0
-psutil==5.9.8
