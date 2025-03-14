@@ -3,9 +3,14 @@ from flask_cors import CORS
 import psutil
 import os
 import requests
+from gpiozero import PWMOutputDevice
+from time import sleep
 
 app = Flask(__name__)
 CORS(app)
+
+pwm_device = PWMOutputDevice(18)
+pwm_device.value = 0
 
 @app.route('/api/test', methods=['GET'])
 def test_api():
@@ -39,6 +44,15 @@ def camera_status():
     except requests.exceptions.RequestException as e:
         return jsonify({'status': 'Error', 'message': f'Stream unavailable: {e}'}), 500
 
+@app.route('/api/motor/on', methods=['POST'])
+def turn_motor_on():
+    pwm_device.value = 0.1
+    return jsonify({'status': 'success', 'message': 'Motor turned on'}), 200
+
+@app.route('/api/motor/off', methods=['POST'])
+def turn_motor_off():
+    pwm_device.value = 0
+    return jsonify({'status': 'success', 'message': 'Motor turned off'}), 200
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
