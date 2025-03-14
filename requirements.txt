@@ -3,4 +3,4 @@ flask_cors==4.0.0
 requests==2.31.0
 RPi.GPIO==0.7.1
 psutil==5.9.5
-Werkzeug==3.0.1 # Werkzeug is a dependency of Flask, specifying it for clarity.
+Werkzeug==3.0.1
