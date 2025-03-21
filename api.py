@@ -59,9 +59,9 @@ def control_motors():
     
     try:
         data = request.json
-        # Validation des valeurs PWM (1100-1900 typique pour ESC)
-        m1 = max(1100, min(1900, int(data.get('m1', 1500))))
-        m2 = max(1100, min(1900, int(data.get('m2', 1500))))
+        # Validation des valeurs PWM (1000-2000 typique pour ESC)
+        m1 = max(1000, min(2000, int(data.get('m1', 1000))))
+        m2 = max(1000, min(2000, int(data.get('m2', 1000))))
         
         # Format de commande : "M1:1500;M2:1500;\n"
         command = f"M1:{m1};M2:{m2};\n"
