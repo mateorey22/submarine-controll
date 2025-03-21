@@ -1,10 +1,24 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 import psutil
 import os
 import requests
+import serial
+import time
+
 app = Flask(__name__)
 CORS(app)
+
+# Configuration UART pour ESP8266
+ESP_PORT = '/dev/serial0'  # Port UART du Raspberry Pi
+BAUD_RATE = 115200
+try:
+    ser = serial.Serial(ESP_PORT, BAUD_RATE, timeout=1)
+    time.sleep(2)  # Laisse le temps à la connexion de s'établir
+    print(f"Connexion UART établie sur {ESP_PORT}")
+except Exception as e:
+    print(f"Erreur lors de l'initialisation UART: {e}")
+    ser = None
 
 @app.route('/api/test', methods=['GET'])
 def test_api():
@@ -38,19 +52,31 @@ def camera_status():
     except requests.exceptions.RequestException as e:
         return jsonify({'status': 'Error', 'message': f'Stream unavailable: {e}'}), 500
 
-from gpiozero import PWMLED
-
-# Initialize PWM on GPIO 18 (moved here to avoid conflicts)
-pwm_signal = PWMLED(18)
-pwm_signal.value = 0  # Start with PWM off
-
-@app.route('/api/motor/control/<float:value>', methods=['GET'])
-def control_motor(value):
-    if 0 <= value <= 1:
-        pwm_signal.value = value
-        return jsonify({'status': 'OK', 'message': f'Motor speed set to {value}'})
-    else:
-        return jsonify({'status': 'Error', 'message': 'Value must be between 0 and 1'}), 400
+@app.route('/api/motors/control', methods=['POST'])
+def control_motors():
+    if ser is None:
+        return jsonify({"status": "error", "message": "UART non disponible"}), 500
+    
+    try:
+        data = request.json
+        # Validation des valeurs PWM (1100-1900 typique pour ESC)
+        m1 = max(1100, min(1900, int(data.get('m1', 1500))))
+        m2 = max(1100, min(1900, int(data.get('m2', 1500))))
+        
+        # Format de commande : "M1:1500;M2:1500;\n"
+        command = f"M1:{m1};M2:{m2};\n"
+        ser.write(command.encode())
+        
+        # Attente de confirmation (optionnel)
+        response = ser.readline().decode().strip()
+        
+        return jsonify({
+            "status": "success", 
+            "command": command,
+            "response": response
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
