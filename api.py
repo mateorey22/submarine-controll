@@ -9,15 +9,15 @@ import time
 app = Flask(__name__)
 CORS(app)
 
-# Configuration UART pour ESP8266
-ESP_PORT = '/dev/serial0'  # Port UART du Raspberry Pi
+# Configuration USB pour ESP8266
+ESP_PORT = '/dev/ttyUSB0'  # Port USB du Raspberry Pi connecté à l'ESP8266
 BAUD_RATE = 115200
 try:
     ser = serial.Serial(ESP_PORT, BAUD_RATE, timeout=1)
     time.sleep(2)  # Laisse le temps à la connexion de s'établir
-    print(f"Connexion UART établie sur {ESP_PORT}")
+    print(f"Connexion USB établie sur {ESP_PORT}")
 except Exception as e:
-    print(f"Erreur lors de l'initialisation UART: {e}")
+    print(f"Erreur lors de l'initialisation de la connexion USB: {e}")
     ser = None
 
 @app.route('/api/test', methods=['GET'])
@@ -55,7 +55,7 @@ def camera_status():
 @app.route('/api/motors/control', methods=['POST'])
 def control_motors():
     if ser is None:
-        return jsonify({"status": "error", "message": "UART non disponible"}), 500
+        return jsonify({"status": "error", "message": "Connexion USB non disponible"}), 500
     
     try:
         data = request.json
