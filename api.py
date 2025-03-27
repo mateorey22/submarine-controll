@@ -44,17 +44,38 @@ def read_serial_data():
     
     while True:
         try:
-            line = ser.readline().decode('utf-8').strip()
+            line = ser.readline().decode('utf-8', errors='replace').strip()
+            print(f"Données série reçues: {line}")  # Debug: afficher toutes les données reçues
+            
             if line.startswith("BNO055:"):
                 # Extraire les données JSON
                 json_str = line[7:]  # Supprimer le préfixe "BNO055:"
+                print(f"Données BNO055 extraites: {json_str}")  # Debug
+                
                 try:
                     data = json.loads(json_str)
                     global bno055_data
                     bno055_data = data
+                    print("Données BNO055 mises à jour avec succès")  # Debug
                 except json.JSONDecodeError as e:
                     print(f"Erreur de décodage JSON: {e}")
                     print(f"Données reçues: {json_str}")
+                    
+                    # Tentative de correction des données JSON malformées
+                    try:
+                        # Parfois, les données peuvent être tronquées ou mal formatées
+                        # Essayons de corriger les accolades manquantes
+                        if not json_str.endswith("}"):
+                            json_str += "}"
+                        if json_str.count("{") > json_str.count("}"):
+                            json_str += "}"
+                        
+                        data = json.loads(json_str)
+                        global bno055_data
+                        bno055_data = data
+                        print("Données BNO055 corrigées et mises à jour")  # Debug
+                    except:
+                        print("Impossible de corriger les données JSON")
         except Exception as e:
             print(f"Erreur lors de la lecture des données série: {e}")
         
@@ -124,7 +145,28 @@ def control_motors():
 
 @app.route('/api/bno055', methods=['GET'])
 def get_bno055_data():
-    return jsonify(bno055_data)
+    # Ajouter un timestamp pour indiquer quand les données ont été récupérées
+    response_data = bno055_data.copy()
+    response_data['timestamp'] = time.time()
+    return jsonify(response_data)
+
+@app.route('/api/bno055/status', methods=['GET'])
+def get_bno055_status():
+    # Endpoint pour vérifier si les données du BNO055 sont disponibles
+    if bno055_data['euler']['x'] == 0 and bno055_data['euler']['y'] == 0 and bno055_data['euler']['z'] == 0:
+        # Si toutes les valeurs sont à zéro, il est probable que les données n'ont pas été mises à jour
+        return jsonify({
+            'status': 'error',
+            'message': 'Aucune donnée valide du BNO055 n\'a été reçue',
+            'data_available': False
+        })
+    else:
+        return jsonify({
+            'status': 'ok',
+            'message': 'Données BNO055 disponibles',
+            'data_available': True,
+            'calibration': bno055_data['calib']
+        })
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
