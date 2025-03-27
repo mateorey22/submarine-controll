@@ -5,6 +5,7 @@ import os
 import requests
 import serial
 import time
+import json
 
 app = Flask(__name__)
 CORS(app)
@@ -19,6 +20,49 @@ try:
 except Exception as e:
     print(f"Erreur lors de l'initialisation de la connexion USB: {e}")
     ser = None
+
+# Variables pour stocker les données du BNO055
+bno055_data = {
+    "euler": {"x": 0, "y": 0, "z": 0},
+    "gyro": {"x": 0, "y": 0, "z": 0},
+    "linear_accel": {"x": 0, "y": 0, "z": 0},
+    "mag": {"x": 0, "y": 0, "z": 0},
+    "accel": {"x": 0, "y": 0, "z": 0},
+    "gravity": {"x": 0, "y": 0, "z": 0},
+    "quat": {"w": 0, "x": 0, "y": 0, "z": 0},
+    "temp": 0,
+    "calib": {"sys": 0, "gyro": 0, "accel": 0, "mag": 0}
+}
+
+# Thread pour lire les données du BNO055
+import threading
+import re
+
+def read_serial_data():
+    if ser is None:
+        return
+    
+    while True:
+        try:
+            line = ser.readline().decode('utf-8').strip()
+            if line.startswith("BNO055:"):
+                # Extraire les données JSON
+                json_str = line[7:]  # Supprimer le préfixe "BNO055:"
+                try:
+                    data = json.loads(json_str)
+                    global bno055_data
+                    bno055_data = data
+                except json.JSONDecodeError as e:
+                    print(f"Erreur de décodage JSON: {e}")
+                    print(f"Données reçues: {json_str}")
+        except Exception as e:
+            print(f"Erreur lors de la lecture des données série: {e}")
+        
+        time.sleep(0.01)  # Petit délai pour éviter de surcharger le CPU
+
+# Démarrer le thread de lecture des données série
+serial_thread = threading.Thread(target=read_serial_data, daemon=True)
+serial_thread.start()
 
 @app.route('/api/test', methods=['GET'])
 def test_api():
@@ -77,6 +121,10 @@ def control_motors():
         })
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/api/bno055', methods=['GET'])
+def get_bno055_data():
+    return jsonify(bno055_data)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
