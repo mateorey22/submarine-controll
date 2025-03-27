@@ -71,6 +71,7 @@ def read_serial_data():
                         continue
 
                     # Mise à jour des données globales
+                    data['timestamp'] = time.time()  # Ajouter un timestamp
                     bno055_data = data
                     print("Données BNO055 mises à jour avec succès")
                     
@@ -89,11 +90,25 @@ def read_serial_data():
                         if not json_str.endswith("}"):
                             json_str += "}"
                         
+                        # Remplacer les virgules doubles par des virgules simples
+                        json_str = re.sub(r',,', ',', json_str)
+                        
+                        # Remplacer les virgules suivies d'accolades fermantes par des accolades fermantes
+                        json_str = re.sub(r',\s*}', '}', json_str)
+                        
+                        # Essayer de charger le JSON corrigé
                         data = json.loads(json_str)
-                        bno055_data = data
-                        print("Données BNO055 corrigées et mises à jour")
-                    except:
-                        print("Impossible de corriger les données JSON")
+                        
+                        # Vérifier que toutes les clés nécessaires sont présentes
+                        if all(key in data for key in ["euler", "gyro", "linear_accel", "mag", "accel", "gravity", "quat", "temp", "calib"]):
+                            # Ajouter un timestamp
+                            data['timestamp'] = time.time()
+                            bno055_data = data
+                            print("Données BNO055 corrigées et mises à jour")
+                        else:
+                            print("Données JSON corrigées mais toujours incomplètes")
+                    except Exception as correction_error:
+                        print(f"Impossible de corriger les données JSON: {correction_error}")
 
         except serial.SerialException as e:
             print(f"Erreur de connexion série: {e}")
@@ -203,25 +218,50 @@ def get_bno055_status():
         return jsonify({
             'status': 'error',
             'message': 'Aucune donnée récente du BNO055 n\'a été reçue',
-            'data_available': False
+            'data_available': False,
+            'last_update': last_update_time,
+            'current_time': current_time,
+            'age': current_time - last_update_time
         })
     
     # Vérifier si les valeurs sont significatives
-    if (bno055_data['euler']['x'] == 0 and 
-        bno055_data['euler']['y'] == 0 and 
-        bno055_data['euler']['z'] == 0):
+    # Vérifier plusieurs valeurs pour s'assurer que les données sont valides
+    all_zeros = True
+    for axis in ['x', 'y', 'z']:
+        if (bno055_data['euler'][axis] != 0 or 
+            bno055_data['gyro'][axis] != 0 or 
+            bno055_data['accel'][axis] != 0):
+            all_zeros = False
+            break
+    
+    # Vérifier également l'état de calibration
+    calib = bno055_data['calib']
+    poor_calibration = (calib['sys'] < 1 and calib['gyro'] < 1 and 
+                        calib['accel'] < 1 and calib['mag'] < 1)
+    
+    if all_zeros:
         return jsonify({
             'status': 'warning',
-            'message': 'Données BNO055 reçues mais potentiellement invalides',
+            'message': 'Données BNO055 reçues mais toutes les valeurs sont à zéro',
             'data_available': True,
-            'calibration': bno055_data['calib']
+            'calibration': calib,
+            'last_update': last_update_time
+        })
+    elif poor_calibration:
+        return jsonify({
+            'status': 'warning',
+            'message': 'Données BNO055 reçues mais calibration insuffisante',
+            'data_available': True,
+            'calibration': calib,
+            'last_update': last_update_time
         })
     
     return jsonify({
         'status': 'ok',
         'message': 'Données BNO055 disponibles et valides',
         'data_available': True,
-        'calibration': bno055_data['calib']
+        'calibration': calib,
+        'last_update': last_update_time
     })
 
 if __name__ == '__main__':
