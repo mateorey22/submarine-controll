@@ -72,6 +72,18 @@ def read_serial_data():
 
                     # Mise à jour des données globales
                     bno055_data = data
+                    
+                    # Si le timestamp n'est pas déjà présent dans les données, l'ajouter
+                    if 'timestamp' not in bno055_data:
+                        bno055_data['timestamp'] = time.time()
+                    else:
+                        # Convertir le timestamp de l'ESP8266 (en ms) en timestamp Unix (en s)
+                        esp_timestamp_ms = bno055_data['timestamp']
+                        # Ajouter un champ pour le timestamp de réception
+                        bno055_data['received_timestamp'] = time.time()
+                        # Garder le timestamp original pour calculer la latence
+                        bno055_data['esp_timestamp_ms'] = esp_timestamp_ms
+                    
                     print("Données BNO055 mises à jour avec succès")
                     
                     # Réinitialiser le compteur de reconnexion
@@ -121,7 +133,7 @@ def read_serial_data():
             print(f"Erreur inattendue lors de la lecture des données série: {e}")
         
         # Petit délai pour éviter de surcharger le CPU
-        time.sleep(0.1)  # Augmenté de 0.01 à 0.1 pour réduire la charge CPU
+        time.sleep(0.01)  # Réduit à 0.01 pour minimiser la latence
 
 # Démarrer le thread de lecture des données série
 serial_thread = threading.Thread(target=read_serial_data, daemon=True)
