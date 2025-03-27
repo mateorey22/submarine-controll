@@ -72,8 +72,6 @@ def read_serial_data():
 
                     # Mise à jour des données globales
                     bno055_data = data
-                    # Ajouter un timestamp au moment de la réception des données
-                    bno055_data['timestamp'] = time.time()
                     print("Données BNO055 mises à jour avec succès")
                     
                     # Réinitialiser le compteur de reconnexion
@@ -123,7 +121,7 @@ def read_serial_data():
             print(f"Erreur inattendue lors de la lecture des données série: {e}")
         
         # Petit délai pour éviter de surcharger le CPU
-        time.sleep(0.01)  # Réduit de 0.1 à 0.01 pour diminuer la latence
+        time.sleep(0.1)  # Augmenté de 0.01 à 0.1 pour réduire la charge CPU
 
 # Démarrer le thread de lecture des données série
 serial_thread = threading.Thread(target=read_serial_data, daemon=True)
