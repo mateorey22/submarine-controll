@@ -28,26 +28,127 @@ orientation_data = {
     "timestamp": time.time()
 }
 
+# Variables pour le lissage des données
+quaternion_buffer = []
+BUFFER_SIZE = 5  # Taille du buffer pour le lissage
+
+# Fonction pour lisser les quaternions (moyenne pondérée)
+def smooth_quaternions(quaternions):
+    if not quaternions:
+        return {"w": 1.0, "x": 0.0, "y": 0.0, "z": 0.0}
+    
+    if len(quaternions) == 1:
+        return quaternions[0]
+    
+    # Calculer la moyenne pondérée des quaternions
+    # Les quaternions plus récents ont plus de poids
+    w, x, y, z = 0, 0, 0, 0
+    total_weight = 0
+    
+    for i, quat in enumerate(quaternions):
+        # Poids croissant pour les quaternions plus récents
+        weight = i + 1
+        total_weight += weight
+        
+        w += quat["w"] * weight
+        x += quat["x"] * weight
+        y += quat["y"] * weight
+        z += quat["z"] * weight
+    
+    # Normaliser par le poids total
+    w /= total_weight
+    x /= total_weight
+    y /= total_weight
+    z /= total_weight
+    
+    # Normaliser le quaternion résultant
+    length = (w*w + x*x + y*y + z*z) ** 0.5
+    
+    return {
+        "w": w / length,
+        "x": x / length,
+        "y": y / length,
+        "z": z / length
+    }
+
 # Fonction pour lire les données série en arrière-plan
 def read_serial_data():
-    global orientation_data, ser
+    global orientation_data, ser, quaternion_buffer
     
     if ser is None:
         return
+    
+    # Compteur pour les tentatives de reconnexion
+    reconnect_attempts = 0
+    max_reconnect_attempts = 5
+    reconnect_delay = 2  # secondes
         
     while True:
         try:
+            if ser is None or not ser.is_open:
+                # Tentative de reconnexion
+                if reconnect_attempts < max_reconnect_attempts:
+                    print(f"Tentative de reconnexion USB ({reconnect_attempts+1}/{max_reconnect_attempts})...")
+                    try:
+                        ser = serial.Serial(ESP_PORT, BAUD_RATE, timeout=1)
+                        time.sleep(2)  # Laisse le temps à la connexion de s'établir
+                        print(f"Reconnexion USB réussie sur {ESP_PORT}")
+                        reconnect_attempts = 0  # Réinitialiser le compteur en cas de succès
+                    except Exception as e:
+                        print(f"Échec de la reconnexion: {e}")
+                        reconnect_attempts += 1
+                        time.sleep(reconnect_delay)
+                        continue
+                else:
+                    print("Nombre maximum de tentatives de reconnexion atteint. Attente avant nouvel essai.")
+                    time.sleep(10)  # Attendre plus longtemps avant de réessayer
+                    reconnect_attempts = 0  # Réinitialiser pour réessayer
+                    continue
+            
             if ser.in_waiting > 0:
-                line = ser.readline().decode('utf-8').strip()
+                try:
+                    line = ser.readline().decode('utf-8').strip()
+                    
+                    # Traiter les données d'orientation (format: "O:w,x,y,z;")
+                    orientation_match = re.match(r'O:([-\d\.]+),([-\d\.]+),([-\d\.]+),([-\d\.]+);', line)
+                    if orientation_match:
+                        w, x, y, z = map(float, orientation_match.groups())
+                        
+                        # Ajouter le nouveau quaternion au buffer
+                        new_quaternion = {"w": w, "x": x, "y": y, "z": z}
+                        quaternion_buffer.append(new_quaternion)
+                        
+                        # Limiter la taille du buffer
+                        if len(quaternion_buffer) > BUFFER_SIZE:
+                            quaternion_buffer.pop(0)  # Supprimer le plus ancien
+                        
+                        # Calculer le quaternion lissé
+                        smoothed_quaternion = smooth_quaternions(quaternion_buffer)
+                        
+                        # Mettre à jour les données d'orientation
+                        orientation_data = {
+                            "quaternion": smoothed_quaternion,
+                            "timestamp": time.time(),
+                            "raw_quaternion": new_quaternion  # Conserver aussi les données brutes
+                        }
+                except UnicodeDecodeError:
+                    # Ignorer les erreurs de décodage (données corrompues)
+                    pass
+            else:
+                # Petite pause pour éviter de surcharger le CPU quand il n'y a pas de données
+                time.sleep(0.001)
                 
-                # Traiter les données d'orientation (format: "O:w,x,y,z;")
-                orientation_match = re.match(r'O:([-\d\.]+),([-\d\.]+),([-\d\.]+),([-\d\.]+);', line)
-                if orientation_match:
-                    w, x, y, z = map(float, orientation_match.groups())
-                    orientation_data = {
-                        "quaternion": {"w": w, "x": x, "y": y, "z": z},
-                        "timestamp": time.time()
-                    }
+        except serial.SerialException as e:
+            print(f"Erreur de connexion série: {e}")
+            # Marquer la connexion comme fermée pour tenter une reconnexion
+            if ser:
+                try:
+                    ser.close()
+                except:
+                    pass
+                ser = None
+            time.sleep(reconnect_delay)
+            
         except Exception as e:
             print(f"Erreur lors de la lecture des données série: {e}")
             time.sleep(1)
