@@ -22,144 +22,32 @@ except Exception as e:
     print(f"Erreur lors de l'initialisation de la connexion USB: {e}")
     ser = None
 
-# Variables pour stocker les données des capteurs
-sensor_data = {
-    "accelerometer": {"x": 0.0, "y": 0.0, "z": 0.0},
-    "gyroscope": {"x": 0.0, "y": 0.0, "z": 0.0},
-    "magnetometer": {"x": 0.0, "y": 0.0, "z": 0.0},
+# Variables pour stocker les données d'orientation
+orientation_data = {
+    "quaternion": {"w": 1.0, "x": 0.0, "y": 0.0, "z": 0.0},
     "timestamp": time.time()
 }
 
-# Variables pour le lissage des données
-accel_buffer = []
-gyro_buffer = []
-mag_buffer = []
-BUFFER_SIZE = 5  # Taille du buffer pour le lissage
-
-# Fonction pour lisser les données des capteurs (moyenne pondérée)
-def smooth_sensor_data(data_buffer):
-    if not data_buffer:
-        return {"x": 0.0, "y": 0.0, "z": 0.0}
-    
-    if len(data_buffer) == 1:
-        return data_buffer[0]
-    
-    # Calculer la moyenne pondérée des données
-    # Les données plus récentes ont plus de poids
-    x, y, z = 0, 0, 0
-    total_weight = 0
-    
-    for i, data in enumerate(data_buffer):
-        # Poids croissant pour les données plus récentes
-        weight = i + 1
-        total_weight += weight
-        
-        x += data["x"] * weight
-        y += data["y"] * weight
-        z += data["z"] * weight
-    
-    # Normaliser par le poids total
-    return {
-        "x": x / total_weight,
-        "y": y / total_weight,
-        "z": z / total_weight
-    }
-
 # Fonction pour lire les données série en arrière-plan
 def read_serial_data():
-    global sensor_data, ser, accel_buffer, gyro_buffer, mag_buffer
+    global orientation_data, ser
     
     if ser is None:
         return
-    
-    # Compteur pour les tentatives de reconnexion
-    reconnect_attempts = 0
-    max_reconnect_attempts = 5
-    reconnect_delay = 2  # secondes
         
     while True:
         try:
-            if ser is None or not ser.is_open:
-                # Tentative de reconnexion
-                if reconnect_attempts < max_reconnect_attempts:
-                    print(f"Tentative de reconnexion USB ({reconnect_attempts+1}/{max_reconnect_attempts})...")
-                    try:
-                        ser = serial.Serial(ESP_PORT, BAUD_RATE, timeout=1)
-                        time.sleep(2)  # Laisse le temps à la connexion de s'établir
-                        print(f"Reconnexion USB réussie sur {ESP_PORT}")
-                        reconnect_attempts = 0  # Réinitialiser le compteur en cas de succès
-                    except Exception as e:
-                        print(f"Échec de la reconnexion: {e}")
-                        reconnect_attempts += 1
-                        time.sleep(reconnect_delay)
-                        continue
-                else:
-                    print("Nombre maximum de tentatives de reconnexion atteint. Attente avant nouvel essai.")
-                    time.sleep(10)  # Attendre plus longtemps avant de réessayer
-                    reconnect_attempts = 0  # Réinitialiser pour réessayer
-                    continue
-            
             if ser.in_waiting > 0:
-                try:
-                    line = ser.readline().decode('utf-8').strip()
-                    
-                    # Traiter les données des capteurs (format: "S:ax,ay,az,gx,gy,gz,mx,my,mz;")
-                    sensor_match = re.match(r'S:([-\d\.]+),([-\d\.]+),([-\d\.]+),([-\d\.]+),([-\d\.]+),([-\d\.]+),([-\d\.]+),([-\d\.]+),([-\d\.]+);', line)
-                    if sensor_match:
-                        ax, ay, az, gx, gy, gz, mx, my, mz = map(float, sensor_match.groups())
-                        
-                        # Ajouter les nouvelles données aux buffers
-                        new_accel = {"x": ax, "y": ay, "z": az}
-                        new_gyro = {"x": gx, "y": gy, "z": gz}
-                        new_mag = {"x": mx, "y": my, "z": mz}
-                        
-                        accel_buffer.append(new_accel)
-                        gyro_buffer.append(new_gyro)
-                        mag_buffer.append(new_mag)
-                        
-                        # Limiter la taille des buffers
-                        if len(accel_buffer) > BUFFER_SIZE:
-                            accel_buffer.pop(0)
-                        if len(gyro_buffer) > BUFFER_SIZE:
-                            gyro_buffer.pop(0)
-                        if len(mag_buffer) > BUFFER_SIZE:
-                            mag_buffer.pop(0)
-                        
-                        # Calculer les données lissées
-                        smoothed_accel = smooth_sensor_data(accel_buffer)
-                        smoothed_gyro = smooth_sensor_data(gyro_buffer)
-                        smoothed_mag = smooth_sensor_data(mag_buffer)
-                        
-                        # Mettre à jour les données des capteurs
-                        sensor_data = {
-                            "accelerometer": smoothed_accel,
-                            "gyroscope": smoothed_gyro,
-                            "magnetometer": smoothed_mag,
-                            "timestamp": time.time(),
-                            "raw_data": {
-                                "accelerometer": new_accel,
-                                "gyroscope": new_gyro,
-                                "magnetometer": new_mag
-                            }
-                        }
-                except UnicodeDecodeError:
-                    # Ignorer les erreurs de décodage (données corrompues)
-                    pass
-            else:
-                # Petite pause pour éviter de surcharger le CPU quand il n'y a pas de données
-                time.sleep(0.001)
+                line = ser.readline().decode('utf-8').strip()
                 
-        except serial.SerialException as e:
-            print(f"Erreur de connexion série: {e}")
-            # Marquer la connexion comme fermée pour tenter une reconnexion
-            if ser:
-                try:
-                    ser.close()
-                except:
-                    pass
-                ser = None
-            time.sleep(reconnect_delay)
-            
+                # Traiter les données d'orientation (format: "O:w,x,y,z;")
+                orientation_match = re.match(r'O:([-\d\.]+),([-\d\.]+),([-\d\.]+),([-\d\.]+);', line)
+                if orientation_match:
+                    w, x, y, z = map(float, orientation_match.groups())
+                    orientation_data = {
+                        "quaternion": {"w": w, "x": x, "y": y, "z": z},
+                        "timestamp": time.time()
+                    }
         except Exception as e:
             print(f"Erreur lors de la lecture des données série: {e}")
             time.sleep(1)
@@ -174,8 +62,8 @@ def test_api():
 
 @app.route('/api/orientation', methods=['GET'])
 def get_orientation():
-    global sensor_data
-    return jsonify(sensor_data)
+    global orientation_data
+    return jsonify(orientation_data)
 
 @app.route('/api/system/info', methods=['GET'])
 def get_system_info():
