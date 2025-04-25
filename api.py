@@ -4,7 +4,6 @@ import psutil
 import os
 import requests
 import serial
-import serial.tools.list_ports
 import time
 import re
 
@@ -12,58 +11,15 @@ app = Flask(__name__)
 CORS(app)
 
 # Configuration USB pour ESP32 S3
+ESP_PORT = '/dev/ttyUSB0'  # Port USB du Raspberry Pi connecté à l'ESP32 S3
 BAUD_RATE = 115200
-ser = None
-esp_port_found = None
-
-def find_esp_port():
-    """Trouve automatiquement le port série de l'ESP32."""
-    global ser, esp_port_found
-    ports = serial.tools.list_ports.comports()
-    print("Recherche de l'ESP32 sur les ports série...")
-    for port in ports:
-        print(f"Test du port: {port.device}")
-        try:
-            # Essayer de se connecter au port
-            temp_ser = serial.Serial(port.device, BAUD_RATE, timeout=1)
-            time.sleep(2) # Donner du temps pour l'initialisation
-
-            # Envoyer une commande de test pour vérifier si c'est le bon appareil
-            temp_ser.write(b"GET_ORIENTATION\n")
-            time.sleep(0.5) # Attendre une réponse
-
-            response = temp_ser.readline().decode().strip()
-            print(f"Réponse de {port.device}: {response}")
-
-            # Vérifier si la réponse correspond au format attendu (commence par 'O:')
-            if response.startswith('O:'):
-                print(f"ESP32 trouvé sur le port {port.device}")
-                ser = temp_ser
-                esp_port_found = port.device
-                return ser # Retourner la connexion série établie
-            else:
-                temp_ser.close() # Fermer la connexion si ce n'est pas le bon appareil
-
-        except (OSError, serial.SerialException) as e:
-            print(f"Impossible de se connecter ou lire depuis {port.device}: {e}")
-            if 'temp_ser' in locals() and temp_ser.is_open:
-                temp_ser.close()
-        except Exception as e:
-            print(f"Erreur inattendue sur {port.device}: {e}")
-            if 'temp_ser' in locals() and temp_ser.is_open:
-                temp_ser.close()
-
-
-    print("Aucun port ESP32 trouvé.")
-    return None
-
-# Tenter de trouver et d'initialiser la connexion série au démarrage
-find_esp_port()
-
-if ser:
-    print(f"Connexion USB établie sur {esp_port_found}")
-else:
-    print("Échec de l'établissement de la connexion USB avec l'ESP32.")
+try:
+    ser = serial.Serial(ESP_PORT, BAUD_RATE, timeout=1)
+    time.sleep(2)  # Laisse le temps à la connexion de s'établir
+    print(f"Connexion USB établie sur {ESP_PORT}")
+except Exception as e:
+    print(f"Erreur lors de l'initialisation de la connexion USB: {e}")
+    ser = None
 
 @app.route('/api/test', methods=['GET'])
 def test_api():
