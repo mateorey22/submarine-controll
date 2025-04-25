@@ -11,7 +11,11 @@ app = Flask(__name__)
 CORS(app)
 
 # Configuration USB pour ESP32 S3
-# Liste des ports USB possibles pour l'ESP32 S3
+ESP_PORT = '/dev/ttyUSB0'  # Port USB du Raspberry Pi connecté à l'ESP32 S3
+BAUD_RATE = 115200
+ser = None
+
+# Liste des ports USB possibles pour l'ESP32 S3 (utilisée uniquement pour la reconnexion)
 POSSIBLE_PORTS = [
     '/dev/ttyUSB0',  # Port USB standard sur Raspberry Pi/Linux
     '/dev/ttyACM0',  # Port ACM possible pour ESP32 S3 en mode CDC
@@ -20,35 +24,15 @@ POSSIBLE_PORTS = [
     'COM4',          # Pour Windows (si utilisé pour tests)
     'COM5'           # Pour Windows (si utilisé pour tests)
 ]
-BAUD_RATE = 115200
-ser = None
 
-# Essayer de se connecter à l'un des ports disponibles
-for port in POSSIBLE_PORTS:
-    try:
-        print(f"Tentative de connexion sur {port}...")
-        ser = serial.Serial(port, BAUD_RATE, timeout=1)
-        time.sleep(2)  # Laisse le temps à la connexion de s'établir
-        
-        # Tester si la connexion est fonctionnelle en envoyant une commande simple
-        # et en vérifiant la réponse
-        test_command = "M1:1000;M2:1000;M3:1000;M4:1000;M5:1000;M6:1000;M7:1000;M8:1000;\n"
-        ser.write(test_command.encode())
-        time.sleep(0.5)
-        
-        # Vider le buffer de réception
-        ser.reset_input_buffer()
-        
-        print(f"Connexion USB établie sur {port}")
-        break  # Sortir de la boucle si la connexion est réussie
-    except Exception as e:
-        print(f"Erreur lors de la connexion sur {port}: {e}")
-        if ser:
-            ser.close()
-            ser = None
-
-if ser is None:
-    print("AVERTISSEMENT: Impossible de se connecter à l'ESP32 S3. Vérifiez les connexions USB.")
+# Tentative de connexion initiale (comme avant)
+try:
+    ser = serial.Serial(ESP_PORT, BAUD_RATE, timeout=1)
+    time.sleep(2)  # Laisse le temps à la connexion de s'établir
+    print(f"Connexion USB établie sur {ESP_PORT}")
+except Exception as e:
+    print(f"Erreur lors de l'initialisation de la connexion USB: {e}")
+    ser = None
 
 @app.route('/api/test', methods=['GET'])
 def test_api():
@@ -73,16 +57,34 @@ def test_serial():
         except:
             connection_status["port"] = "Unknown"
     
-    # Lister les ports série disponibles
+    # Lister les ports série disponibles de manière sécurisée
     try:
-        import serial.tools.list_ports
-        ports = list(serial.tools.list_ports.comports())
-        for port in ports:
-            connection_status["available_ports"].append({
-                "device": port.device,
-                "description": port.description,
-                "hwid": port.hwid
-            })
+        # Essayer d'importer le module pour lister les ports
+        try:
+            import serial.tools.list_ports
+            ports = list(serial.tools.list_ports.comports())
+            for port in ports:
+                connection_status["available_ports"].append({
+                    "device": port.device,
+                    "description": port.description,
+                    "hwid": port.hwid
+                })
+        except ImportError:
+            # Si le module n'est pas disponible, utiliser une méthode alternative
+            # Vérifier manuellement les ports communs
+            for port_name in POSSIBLE_PORTS:
+                try:
+                    # Essayer d'ouvrir brièvement le port pour voir s'il existe
+                    test_ser = serial.Serial(port_name, BAUD_RATE, timeout=0.1)
+                    test_ser.close()
+                    connection_status["available_ports"].append({
+                        "device": port_name,
+                        "description": "Port détecté",
+                        "hwid": "N/A"
+                    })
+                except:
+                    # Le port n'est pas disponible, continuer
+                    pass
     except Exception as e:
         connection_status["port_list_error"] = str(e)
     
@@ -106,16 +108,26 @@ def test_serial():
                 ser = serial.Serial(port, BAUD_RATE, timeout=1)
                 time.sleep(1)
                 
-                # Tester la connexion
-                test_command = "M1:1000;M2:1000;M3:1000;M4:1000;M5:1000;M6:1000;M7:1000;M8:1000;\n"
-                ser.write(test_command.encode())
-                time.sleep(0.5)
-                
-                # Lire la réponse
-                response = ""
-                start_time = time.time()
-                while time.time() - start_time < 1.0 and ser.in_waiting > 0:
-                    response += ser.readline().decode().strip() + " "
+                # Tester la connexion avec gestion d'erreur
+                try:
+                    test_command = "M1:1000;M2:1000;M3:1000;M4:1000;M5:1000;M6:1000;M7:1000;M8:1000;\n"
+                    ser.write(test_command.encode())
+                    
+                    # Lire la réponse avec timeout
+                    response = ""
+                    start_time = time.time()
+                    while time.time() - start_time < 1.0:
+                        if ser.in_waiting > 0:
+                            try:
+                                line = ser.readline().decode().strip()
+                                if line:
+                                    response += line + " "
+                            except:
+                                break
+                        else:
+                            time.sleep(0.01)
+                except Exception as e:
+                    response = f"Erreur lors du test: {e}"
                 
                 connection_status["reconnect_success"] = True
                 connection_status["connected"] = True
@@ -126,7 +138,10 @@ def test_serial():
             except Exception as e:
                 print(f"Échec de reconnexion sur {port}: {e}")
                 if ser:
-                    ser.close()
+                    try:
+                        ser.close()
+                    except:
+                        pass
                     ser = None
                 connection_status["reconnect_error"] = str(e)
     
@@ -166,19 +181,27 @@ def control_motors():
     
     # Vérifier si la connexion série est disponible
     if ser is None:
-        # Tentative de reconnexion
-        for port in POSSIBLE_PORTS:
-            try:
-                print(f"Tentative de reconnexion sur {port}...")
-                ser = serial.Serial(port, BAUD_RATE, timeout=1)
-                time.sleep(1)
-                print(f"Reconnexion USB réussie sur {port}")
-                break
-            except Exception as e:
-                print(f"Échec de reconnexion sur {port}: {e}")
-                if ser:
-                    ser.close()
-                    ser = None
+        # Tentative de reconnexion simplifiée
+        try:
+            # Essayer d'abord le port par défaut
+            print(f"Tentative de reconnexion sur {ESP_PORT}...")
+            ser = serial.Serial(ESP_PORT, BAUD_RATE, timeout=1)
+            time.sleep(1)
+            print(f"Reconnexion USB réussie sur {ESP_PORT}")
+        except Exception as e:
+            print(f"Échec de reconnexion sur le port par défaut: {e}")
+            # Si le port par défaut échoue, essayer les autres ports
+            for port in POSSIBLE_PORTS:
+                if port == ESP_PORT:
+                    continue  # Déjà essayé
+                try:
+                    print(f"Tentative de reconnexion sur {port}...")
+                    ser = serial.Serial(port, BAUD_RATE, timeout=1)
+                    time.sleep(1)
+                    print(f"Reconnexion USB réussie sur {port}")
+                    break
+                except Exception as e:
+                    print(f"Échec de reconnexion sur {port}: {e}")
         
         # Si toujours pas de connexion
         if ser is None:
@@ -188,6 +211,19 @@ def control_motors():
             }), 500
     
     try:
+        # Vérifier si la connexion est toujours valide
+        if not ser.is_open:
+            try:
+                ser.open()
+            except Exception as e:
+                print(f"Erreur lors de la réouverture du port série: {e}")
+                ser = None
+                return jsonify({
+                    "status": "error", 
+                    "message": "Port série fermé et impossible à rouvrir"
+                }), 500
+        
+        # Récupérer et valider les données JSON
         data = request.json
         if not data:
             return jsonify({"status": "error", "message": "Données JSON manquantes"}), 400
@@ -211,8 +247,13 @@ def control_motors():
             command += f"M{i}:{value};"
         command += "\n"
         
-        # Envoyer la commande
+        # Envoyer la commande avec gestion d'erreur robuste
         try:
+            # Vider les buffers avant d'envoyer une nouvelle commande
+            ser.reset_input_buffer()
+            ser.reset_output_buffer()
+            
+            # Envoyer la commande
             ser.write(command.encode())
         except Exception as e:
             # En cas d'erreur d'écriture, la connexion est probablement perdue
@@ -234,17 +275,17 @@ def control_motors():
         timeout_duration = 1.0  # 1 seconde maximum d'attente
         
         while time.time() - start_time < timeout_duration:
-            if ser.in_waiting > 0:
-                try:
+            try:
+                if ser and ser.in_waiting > 0:
                     line = ser.readline().decode().strip()
                     if line.startswith("ACK:"):
                         response = line
                         break
                     elif line:
                         response += line + " "
-                except Exception as e:
-                    response = f"Erreur de lecture: {e}"
-                    break
+            except Exception as e:
+                response = f"Erreur de lecture: {e}"
+                break
             time.sleep(0.01)  # Petit délai pour éviter de surcharger le CPU
         
         # Si aucune réponse après le timeout
