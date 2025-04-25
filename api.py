@@ -5,9 +5,7 @@ import os
 import requests
 import serial
 import time
-import json
 import re
-import threading
 
 app = Flask(__name__)
 CORS(app)
@@ -22,68 +20,6 @@ try:
 except Exception as e:
     print(f"Erreur lors de l'initialisation de la connexion USB: {e}")
     ser = None
-
-# Variables pour stocker les dernières données d'orientation
-last_orientation = {
-    "roll": 0.0,
-    "pitch": 0.0,
-    "yaw": 0.0,
-    "calibration": {
-        "system": 0,
-        "gyro": 0,
-        "accel": 0,
-        "mag": 0
-    },
-    "timestamp": 0
-}
-
-# Thread pour lire les données d'orientation en continu
-def read_serial_data():
-    if ser is None:
-        return
-    
-    # Pattern pour inclure les données de calibration
-    orientation_pattern = re.compile(r'O:(-?\d+\.?\d*),(-?\d+\.?\d*),(-?\d+\.?\d*),(\d+),(\d+),(\d+),(\d+)')
-    
-    while True:
-        try:
-            if ser.in_waiting > 0:
-                line = ser.readline().decode('utf-8').strip()
-                
-                # Recherche des données d'orientation
-                match = orientation_pattern.match(line)
-                if match:
-                    roll = float(match.group(1))
-                    pitch = float(match.group(2))
-                    yaw = float(match.group(3))
-                    sys_cal = int(match.group(4))
-                    gyro_cal = int(match.group(5))
-                    accel_cal = int(match.group(6))
-                    mag_cal = int(match.group(7))
-                    
-                    # Mise à jour des données d'orientation
-                    global last_orientation
-                    last_orientation = {
-                        "roll": roll,
-                        "pitch": pitch,
-                        "yaw": yaw,
-                        "calibration": {
-                            "system": sys_cal,
-                            "gyro": gyro_cal,
-                            "accel": accel_cal,
-                            "mag": mag_cal
-                        },
-                        "timestamp": time.time()
-                    }
-                    print(f"Orientation mise à jour: roll={roll}, pitch={pitch}, yaw={yaw}, cal={sys_cal}/{gyro_cal}/{accel_cal}/{mag_cal}")
-        except Exception as e:
-            print(f"Erreur lors de la lecture des données série: {e}")
-        
-        time.sleep(0.01)  # Petit délai pour éviter de surcharger le CPU
-
-# Démarrage du thread de lecture série
-serial_thread = threading.Thread(target=read_serial_data, daemon=True)
-serial_thread.start()
 
 @app.route('/api/test', methods=['GET'])
 def test_api():
@@ -139,22 +75,19 @@ def control_motors():
             command += f"M{i}:{value};"
         command += "\n"
         
+        # Envoyer la commande
         ser.write(command.encode())
         
-        # Attente de confirmation (optionnel)
+        # Attendre une réponse simple
         try:
             response = ser.readline().decode().strip()
-            timeout_start = time.time()
-            while not response.startswith("ACK:") and (time.time() - timeout_start) < 1.0:
-                response = ser.readline().decode().strip()
         except Exception as e:
-            response = f"Erreur lors de la lecture de la confirmation: {e}"
+            response = f"Erreur: {e}"
         
         return jsonify({
             "status": "success", 
             "command": command,
-            "response": response,
-            "motors": motor_values
+            "response": response
         })
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -162,22 +95,60 @@ def control_motors():
 @app.route('/api/orientation', methods=['GET'])
 def get_orientation():
     """
-    Renvoie les dernières données d'orientation du capteur IMU
+    Renvoie les données d'orientation du capteur IMU
     """
-    global last_orientation
+    if ser is None:
+        return jsonify({"status": "error", "message": "Connexion USB non disponible"}), 500
     
-    # Vérifier si les données sont récentes (moins de 5 secondes)
-    if time.time() - last_orientation["timestamp"] > 5:
+    try:
+        # Envoyer une commande pour demander les données d'orientation
+        ser.write(b"GET_ORIENTATION\n")
+        
+        # Attendre la réponse
+        response = ser.readline().decode().strip()
+        
+        # Analyser la réponse avec une expression régulière
+        orientation_pattern = re.compile(r'O:(-?\d+\.?\d*),(-?\d+\.?\d*),(-?\d+\.?\d*),(\d+),(\d+),(\d+),(\d+)')
+        match = orientation_pattern.match(response)
+        
+        if match:
+            roll = float(match.group(1))
+            pitch = float(match.group(2))
+            yaw = float(match.group(3))
+            sys_cal = int(match.group(4))
+            gyro_cal = int(match.group(5))
+            accel_cal = int(match.group(6))
+            mag_cal = int(match.group(7))
+            
+            orientation_data = {
+                "roll": roll,
+                "pitch": pitch,
+                "yaw": yaw,
+                "calibration": {
+                    "system": sys_cal,
+                    "gyro": gyro_cal,
+                    "accel": accel_cal,
+                    "mag": mag_cal
+                },
+                "timestamp": time.time()
+            }
+            
+            return jsonify({
+                "status": "success",
+                "data": orientation_data
+            })
+        else:
+            return jsonify({
+                "status": "error",
+                "message": "Format de réponse invalide",
+                "response": response
+            }), 500
+            
+    except Exception as e:
         return jsonify({
-            "status": "warning",
-            "message": "Les données d'orientation peuvent être obsolètes",
-            "data": last_orientation
-        })
-    
-    return jsonify({
-        "status": "success",
-        "data": last_orientation
-    })
+            "status": "error",
+            "message": f"Erreur lors de la lecture des données d'orientation: {e}"
+        }), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
