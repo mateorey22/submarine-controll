@@ -5,7 +5,7 @@ import os
 import requests
 import serial
 import time
-import re
+import re # Importation du module re pour les expressions régulières
 
 app = Flask(__name__)
 CORS(app)
@@ -25,16 +25,20 @@ ser = None # Initialiser ser à None
 
 try:
     print(f"Tentative de connexion sur le port série: {ESP_PORT} à {BAUD_RATE} baud")
-    ser = serial.Serial(ESP_PORT, BAUD_RATE, timeout=1)
+    # Ajout de write_timeout pour éviter des blocages potentiels à l'écriture
+    ser = serial.Serial(ESP_PORT, BAUD_RATE, timeout=1, write_timeout=1)
     time.sleep(2)  # Laisse le temps à la connexion de s'établir
+    # Essayer d'écrire une commande vide juste pour tester la connexion
+    ser.write(b'\n')
+    ser.flush()
     print(f"Connexion USB établie avec succès sur {ESP_PORT}")
 except serial.SerialException as e:
     print(f"ERREUR lors de l'initialisation de la connexion USB sur {ESP_PORT}: {e}")
     print("Causes possibles :")
     print("- L'ESP32 n'est pas connecté ou n'est pas sous tension.")
-    print("- Le port série '{ESP_PORT}' est incorrect. Vérifiez avec 'ls /dev/tty*'.")
-    print("- L'utilisateur n'a pas les permissions (ajoutez-le au groupe 'dialout': sudo usermod -a -G dialout $USER).")
-    print("- Un autre programme utilise déjà le port série.")
+    print(f"- Le port série '{ESP_PORT}' est incorrect. Vérifiez avec 'ls /dev/tty*'.")
+    print("- L'utilisateur n'a pas les permissions (ajoutez-le au groupe 'dialout': sudo usermod -a -G dialout $USER et redémarrez).")
+    print("- Un autre programme utilise déjà le port série (vérifiez avec 'sudo lsof | grep {ESP_PORT}').")
     # L'application peut continuer à fonctionner, mais les endpoints nécessitant 'ser' renverront une erreur.
 except Exception as e:
     print(f"ERREUR inattendue lors de l'initialisation de la connexion USB: {e}")
@@ -42,7 +46,12 @@ except Exception as e:
 
 @app.route('/api/test', methods=['GET'])
 def test_api():
-    return jsonify({'message': 'API is working'})
+    # Tester aussi la connexion série si possible
+    if ser and ser.is_open:
+        return jsonify({'message': f'API is working, Serial connection to {ESP_PORT} seems OK.'})
+    else:
+        return jsonify({'message': 'API is working, BUT Serial connection FAILED.'}), 500
+
 
 @app.route('/api/system/info', methods=['GET'])
 def get_system_info():
@@ -134,7 +143,7 @@ def control_motors():
         motor_values = []
 
         # Récupération des valeurs pour les 8 moteurs
-        for i in range(1, 9):
+        for i in range(1, 9): # Boucle de 1 à 8
             motor_key = f'm{i}'
             # Utiliser 1000 (arrêt) comme valeur par défaut si la clé manque
             raw_value = data.get(motor_key, 1000)
@@ -146,7 +155,7 @@ def control_motors():
                  motor_value = 1000 # Mettre à 1000 si la valeur n'est pas un entier valide
             motor_values.append(motor_value)
 
-        # Format de commande : "M1:1500;M2:1500;M3:1500;...M8:1500;\n"
+        # Format de commande : "M1:1500;M2:1500;...;M8:1500;\n"
         command = ""
         for i, value in enumerate(motor_values, 1):
             command += f"M{i}:{value};"
@@ -165,9 +174,13 @@ def control_motors():
             response_bytes = ser.readline()
             response = response_bytes.decode('utf-8').strip()
             print(f"Réponse ESP32 (Moteurs): {response}")
+            # Vérifier si la réponse est bien un ACK (commence par ACK:)
+            if not response.startswith("ACK:"):
+                 print(f"AVERTISSEMENT: Réponse inattendue de l'ESP32 reçue: {response}")
+                 # On peut quand même retourner un succès car la commande a été envoyée
         except serial.SerialTimeoutException:
              print("AVERTISSEMENT: Timeout en attendant la réponse ACK de l'ESP32.")
-             response = "Timeout"
+             response = "Timeout waiting for ACK" # Message plus clair
         except Exception as e:
             print(f"ERREUR lors de la lecture de la réponse ACK de l'ESP32: {e}")
             response = f"Error reading response: {e}"
@@ -181,110 +194,20 @@ def control_motors():
         print(f"ERREUR dans l'endpoint /api/motors/control: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
+# Endpoint pour l'orientation (retourne une erreur car l'IMU est désactivé dans ce code Arduino)
 @app.route('/api/orientation', methods=['GET'])
 def get_orientation():
-    """
-    Renvoie les données d'orientation du capteur IMU en les demandant à l'ESP32.
-    """
-    # Vérifier si la connexion série est établie
-    if ser is None or not ser.is_open:
-        print("ERREUR: Tentative de lecture orientation mais la connexion USB n'est pas disponible.")
-        return jsonify({"status": "error", "message": "Connexion USB non disponible"}), 500
-
-    try:
-        # Envoyer une commande pour demander les données d'orientation
-        command = b"GET_ORIENTATION\n"
-        print(f"Envoi commande orientation: {command.strip().decode()}")
-        ser.write(command)
-        ser.flush()
-
-        # Attendre la réponse (O:roll,pitch,yaw,sys,gyro,accel,mag)
-        response = ""
-        try:
-            response_bytes = ser.readline()
-            response = response_bytes.decode('utf-8').strip()
-            print(f"Réponse ESP32 (Orientation): {response}")
-        except serial.SerialTimeoutException:
-             print("AVERTISSEMENT: Timeout en attendant la réponse d'orientation de l'ESP32.")
-             return jsonify({"status": "error", "message": "Timeout en attendant la réponse de l'ESP32"}), 504 # Gateway Timeout
-        except Exception as e:
-            print(f"ERREUR lors de la lecture de la réponse d'orientation de l'ESP32: {e}")
-            return jsonify({"status": "error", "message": f"Erreur de lecture série: {e}"}), 500
-
-        # Analyser la réponse avec une expression régulière plus robuste
-        # Format attendu: O:float,float,float,int,int,int,int
-        orientation_pattern = re.compile(
-            r'^O:'                          # Commence par O:
-            r'(-?\d+(?:\.\d+)?),'          # 1: Roll (float)
-            r'(-?\d+(?:\.\d+)?),'          # 2: Pitch (float)
-            r'(-?\d+(?:\.\d+)?),'          # 3: Yaw (float)
-            r'(\d+),'                      # 4: Sys Cal (int)
-            r'(\d+),'                      # 5: Gyro Cal (int)
-            r'(\d+),'                      # 6: Accel Cal (int)
-            r'(\d+)$'                      # 7: Mag Cal (int) - fin de ligne
-        )
-        match = orientation_pattern.match(response)
-
-        if match:
-            try:
-                roll = float(match.group(1))
-                pitch = float(match.group(2))
-                yaw = float(match.group(3))
-                sys_cal = int(match.group(4))
-                gyro_cal = int(match.group(5))
-                accel_cal = int(match.group(6))
-                mag_cal = int(match.group(7))
-
-                orientation_data = {
-                    "roll": roll,
-                    "pitch": pitch,
-                    "yaw": yaw,
-                    "calibration": {
-                        "system": sys_cal,
-                        "gyro": gyro_cal,
-                        "accel": accel_cal,
-                        "mag": mag_cal
-                    },
-                    "timestamp": time.time() # Ajouter un timestamp côté serveur
-                }
-
-                return jsonify({
-                    "status": "success",
-                    "data": orientation_data
-                })
-            except ValueError as e:
-                 print(f"ERREUR: Impossible de convertir les valeurs d'orientation: {e} depuis la réponse: {response}")
-                 return jsonify({
-                    "status": "error",
-                    "message": f"Erreur de conversion des données: {e}",
-                    "raw_response": response
-                 }), 500
-        else:
-            # Gérer aussi la réponse ACK si elle arrive ici par erreur
-            if response.startswith("ACK:"):
-                 print(f"AVERTISSEMENT: Réponse ACK reçue au lieu de l'orientation: {response}")
-                 return jsonify({
-                     "status": "error",
-                     "message": "Réponse inattendue (ACK reçue)",
-                     "raw_response": response
-                 }), 500
-            else:
-                 print(f"ERREUR: Format de réponse d'orientation invalide: {response}")
-                 return jsonify({
-                     "status": "error",
-                     "message": "Format de réponse invalide de l'ESP32",
-                     "raw_response": response
-                 }), 500
-
-    except Exception as e:
-        print(f"ERREUR dans l'endpoint /api/orientation: {e}")
-        return jsonify({
-            "status": "error",
-            "message": f"Erreur serveur lors de la lecture des données d'orientation: {e}"
-        }), 500
+    print("AVERTISSEMENT: Tentative de lecture de l'orientation, mais l'IMU est désactivé dans le code Arduino actuel.")
+    return jsonify({
+        "status": "error",
+        "message": "Fonctionnalité d'orientation désactivée dans le code ESP32 actuel."
+    }), 404 # Not Found or 501 Not Implemented
 
 if __name__ == '__main__':
     # Utiliser l'hôte 0.0.0.0 pour être accessible depuis d'autres machines sur le réseau
     # debug=True est utile pour le développement, mais à désactiver en production
-    print("Démarrage du serveur Flask sur http://0.0.0.0:5000")
+    print(f"Démarrage du serveur Flask sur http://0.0.0.0:5000")
+    print(f"Utilisation du port série: {ESP_PORT}")
+    if ser is None or not ser.is_open:
+         print("ATTENTION: La connexion série n'a pas pu être établie au démarrage.")
     app.run(debug=True, host='0.0.0.0', port=5000)
