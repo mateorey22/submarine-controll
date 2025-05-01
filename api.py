@@ -92,6 +92,37 @@ def control_motors():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+@app.route('/api/led/control', methods=['POST'])
+def control_led():
+    if ser is None:
+        return jsonify({"status": "error", "message": "Connexion USB non disponible"}), 500
+    
+    try:
+        data = request.json
+        # Validation de la valeur de luminosité (0-100)
+        brightness = max(0, min(100, int(data.get('brightness', 0))))
+        
+        # Format de commande : "LED:50;\n"
+        command = f"LED:{brightness};\n"
+        
+        # Envoyer la commande
+        ser.write(command.encode())
+        
+        # Attendre une réponse simple
+        try:
+            response = ser.readline().decode().strip()
+        except Exception as e:
+            response = f"Erreur: {e}"
+        
+        return jsonify({
+            "status": "success", 
+            "command": command,
+            "response": response,
+            "brightness": brightness
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route('/api/orientation', methods=['GET'])
 def get_orientation():
     """
