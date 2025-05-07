@@ -181,48 +181,5 @@ def get_orientation():
             "message": f"Erreur lors de la lecture des données d'orientation: {e}"
         }), 500
 
-@app.route('/api/depth', methods=['GET'])
-def get_depth_data():
-    """
-    Renvoie les données de profondeur du capteur GY-MS5837
-    """
-    if ser is None:
-        return jsonify({"status": "error", "message": "Connexion USB non disponible"}), 500
-    
-    try:
-        # Envoyer une commande pour demander les données de profondeur
-        ser.write(b"GET_DEPTH\n")
-        
-        # Attendre la réponse
-        response = ser.readline().decode().strip()
-        
-        # Analyser la réponse avec une expression régulière
-        # Format attendu: "D:depth,pressure"
-        depth_pattern = re.compile(r'D:(-?\d+\.?\d*),(-?\d+\.?\d*)')
-        match = depth_pattern.match(response)
-        
-        if match:
-            depth = float(match.group(1))      # Profondeur en mètres
-            pressure = float(match.group(2))   # Pression en mbar
-            
-            return jsonify({
-                "status": "success",
-                "depth": depth,
-                "pressure": pressure,
-                "timestamp": time.time()
-            })
-        else:
-            return jsonify({
-                "status": "error",
-                "message": "Format de réponse invalide",
-                "response": response
-            }), 500
-            
-    except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": f"Erreur lors de la lecture des données de profondeur: {e}"
-        }), 500
-
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
