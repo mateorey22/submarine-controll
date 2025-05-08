@@ -1,11 +1,11 @@
-# Code basé sur la version fonctionnelle fournie par l'utilisateur,
-# avec ajout de l'endpoint /api/depth et correction du port série.
+# Ce code est basé sur votre fichier original 'sauvegarde_pression/submarin/submarine/api/api.py'
+# avec l'ajout de l'endpoint /api/depth
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import psutil
 import os
-import requests
+import requests # Gardé car utilisé dans /api/camera/status
 import serial
 import time
 import re
@@ -13,46 +13,54 @@ import re
 app = Flask(__name__)
 CORS(app)
 
-# Configuration USB pour ESP32 S3 - Corrigé selon la demande de l'utilisateur
-ESP_PORT = '/dev/ttyACM0' # Port USB correct
+# Configuration USB pour ESP32 S3 - Reprise de votre configuration originale
+ESP_PORT = '/dev/ttyACM0' # Port USB du Raspberry Pi connecté à l'ESP32 S3
 BAUD_RATE = 115200
 ser = None # Initialiser à None
 
-# Essayer d'initialiser la connexion série au démarrage (comme dans la version fonctionnelle)
+# Essayer d'initialiser la connexion série au démarrage
 try:
     ser = serial.Serial(ESP_PORT, BAUD_RATE, timeout=1)
-    time.sleep(2)  # Laisse le temps à la connexion de s'établir
-    print(f"Connexion USB établie sur {ESP_PORT}")
+    # Ne pas bloquer trop longtemps ici, la reconnexion peut être tentée plus tard si nécessaire
+    # time.sleep(2) 
+    if ser.is_open:
+        print(f"Connexion série initialisée sur {ESP_PORT}")
+    else:
+        print(f"Impossible d'ouvrir la connexion série sur {ESP_PORT} au démarrage.")
+        ser = None # S'assurer que ser est None si l'ouverture échoue
+except serial.SerialException as e:
+    print(f"Erreur lors de l'initialisation de la connexion série: {e}")
+    ser = None
 except Exception as e:
-    print(f"Erreur lors de l'initialisation de la connexion USB: {e}")
-    ser = None # S'assurer que ser est None si l'ouverture échoue
+    print(f"Autre erreur lors de l'initialisation: {e}")
+    ser = None
 
 @app.route('/api/test', methods=['GET'])
 def test_api():
-    # Fonction originale
-    return jsonify({'message': 'API is working'})
+    # Cet endpoint teste si Flask fonctionne, pas la connexion ESP32
+    return jsonify({'message': 'API Flask is working'})
 
 @app.route('/api/system/info', methods=['GET'])
 def get_system_info():
-    # Fonction originale
+    # Repris de votre code original
     try:
         cpu_temperature_raw = os.popen("vcgencmd measure_temp").readline()
-        cpu_temperature = cpu_temperature_raw.replace("temp=","").replace("'C\\n","").strip()
-        if not cpu_temperature:
+        cpu_temperature = cpu_temperature_raw.replace("temp=","").replace("'C\n","").strip()
+        if not cpu_temperature: # Fallback si vcgencmd échoue ou n'est pas dispo
              cpu_temperature = "N/A"
     except Exception:
         cpu_temperature = "N/A"
         
     try:
         ram_usage = psutil.virtual_memory().percent
-        load_system = psutil.getloadavg()[0]
+        load_system = psutil.getloadavg()[0] 
         disk_space = psutil.disk_usage('/').percent
     except Exception as e:
         print(f"Erreur psutil: {e}")
         ram_usage = "N/A"
         load_system = "N/A"
         disk_space = "N/A"
-        
+
     return jsonify({
         'cpu_temperature': cpu_temperature,
         'ram_usage': ram_usage,
@@ -62,18 +70,17 @@ def get_system_info():
 
 @app.route('/api/camera/status')
 def camera_status():
-    # Fonction originale
+    # Repris de votre code original
     try:
-        response = requests.get('http://localhost:8080/?action=stream', stream=True, timeout=5)
-        response.raise_for_status()  # Lève une exception si le code HTTP n'est pas 200 OK
-        #On verifie que le content type est bien celui attendu.
+        response = requests.get('http://localhost:8080/?action=stream', stream=True, timeout=2) # Timeout réduit
+        response.raise_for_status()  
         if 'multipart/x-mixed-replace' in response.headers.get('Content-Type', ''):
             return jsonify({'status': 'OK', 'message': 'Stream is available'})
         else:
             return jsonify({'status': 'Error', 'message': 'Unexpected content type'}), 500
-
     except requests.exceptions.RequestException as e:
-        print(f"Erreur camera status: {e}")
+        # Log l'erreur côté serveur pour le débogage
+        print(f"Erreur camera status: {e}") 
         return jsonify({'status': 'Error', 'message': f'Stream unavailable: {e}'}), 500
     except Exception as e:
         print(f"Erreur inattendue camera status: {e}")
@@ -82,120 +89,162 @@ def camera_status():
 
 @app.route('/api/motors/control', methods=['POST'])
 def control_motors():
-    # Fonction originale, avec la vérification initiale de 'ser'
-    if ser is None:
-        return jsonify({"status": "error", "message": "Connexion USB non disponible"}), 500
-        
+    # Repris de votre code original, avec vérification de 'ser'
+    if ser is None or not ser.is_open:
+        # Essayer de rouvrir une fois si la connexion a été perdue
+        global ser
+        try:
+            print("Tentative de reconnexion série pour commande moteurs...")
+            if ser: ser.close()
+            ser = serial.Serial(ESP_PORT, BAUD_RATE, timeout=1)
+            if not ser.is_open: raise serial.SerialException("Impossible de rouvrir le port.")
+            print("Reconnexion série réussie.")
+        except Exception as e:
+            print(f"Échec de la reconnexion série: {e}")
+            ser = None
+            return jsonify({"status": "error", "message": f"Connexion USB non disponible: {e}"}), 500
+
     try:
         data = request.json
-        motor_values = []
+        motor_values_to_send = []
+        command_parts = []
         
-        # Récupération des valeurs pour les 8 moteurs
-        for i in range(1, 9):
+        for i in range(1, 9): # Pour 8 moteurs, M1 à M8
             motor_key = f'm{i}'
             motor_value = max(1000, min(2000, int(data.get(motor_key, 1000))))
-            motor_values.append(motor_value)
-            
-        # Format de commande : "M1:1500;M2:1500;M3:1500;...M8:1500;\n"
-        command = ""
-        for i, value in enumerate(motor_values, 1):
-            command += f"M{i}:{value};"
-        command += "\n"
+            command_parts.append(f"M{i}:{motor_value}")
         
-        # Envoyer la commande
-        print(f"Envoi commande moteurs: {command.strip()}")
-        ser.write(command.encode())
+        command_to_esp = ";".join(command_parts) + ";\n" # Format: M1:1500;M2:1500;...M8:1500;
         
-        # Attendre une réponse simple
-        response = "No response" # Valeur par défaut
-        try:
-            # Mettre un timeout plus court pour la lecture de l'ACK pour éviter de bloquer
-            original_timeout = ser.timeout
-            ser.timeout = 0.5 
-            response = ser.readline().decode('utf-8').strip()
-            ser.timeout = original_timeout # Remettre le timeout original
-            print(f"Réponse moteurs: {response}")
-        except Exception as e:
-            print(f"Erreur lors de la lecture de la réponse moteur: {e}")
-            response = f"Erreur lecture: {e}" # Ou garder "No response"
+        print(f"Envoi commande moteurs: {command_to_esp.strip()}")
+        ser.write(command_to_esp.encode())
         
-        # Retourner le statut success même si la réponse n'est pas parfaite, comme dans l'original
+        # Attendre une réponse simple (comme dans votre code original)
+        # Mettre un timeout plus court pour éviter de bloquer trop longtemps
+        ser.timeout = 0.5 # Timeout de 500ms pour la lecture de l'ACK
+        response = ser.readline().decode('utf-8').strip()
+        ser.timeout = 1 # Remettre le timeout par défaut
+        print(f"Réponse moteurs: {response}")
+        
+        # Vérifier si la réponse est celle attendue (adapté de votre code ESP32)
+        if "MOTORS_VALUES_STORED" in response or "MOTORS_OK" in response: # Accepter les deux réponses possibles
+             status = "success"
+        else:
+             status = "warning" # ou "error" si vous préférez
+
         return jsonify({
-            "status": "success", 
-            "command_sent": command.strip(),
-            "response_from_esp32": response
+            "status": status,
+            "command_sent": command_to_esp.strip(),
+            "response_from_esp32": response or "No response" # Fournir une valeur par défaut
         })
+            
+    except serial.SerialTimeoutException:
+        print("Timeout lors de l'attente de la réponse moteur.")
+        return jsonify({"status": "error", "message": "Timeout: No response from ESP32 for motor command."}), 500
     except Exception as e:
         print(f"Erreur dans /api/motors/control: {e}")
-        # En cas d'erreur ici, on pourrait essayer de gérer la reconnexion
-        # mais pour rester fidèle à l'original, on retourne juste l'erreur.
+        # Essayer de fermer et invalider ser en cas d'erreur grave
+        global ser
+        try: 
+            if ser: ser.close()
+        except: pass
+        ser = None
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/api/led/control', methods=['POST'])
 def control_led():
-    # Fonction originale, avec la vérification initiale de 'ser'
-    if ser is None:
-        return jsonify({"status": "error", "message": "Connexion USB non disponible"}), 500
-        
+    # Repris de votre code original, avec vérification de 'ser'
+    if ser is None or not ser.is_open:
+        # Essayer de rouvrir une fois
+        global ser
+        try:
+            print("Tentative de reconnexion série pour commande LED...")
+            if ser: ser.close()
+            ser = serial.Serial(ESP_PORT, BAUD_RATE, timeout=1)
+            if not ser.is_open: raise serial.SerialException("Impossible de rouvrir le port.")
+            print("Reconnexion série réussie.")
+        except Exception as e:
+            print(f"Échec de la reconnexion série: {e}")
+            ser = None
+            return jsonify({"status": "error", "message": f"Connexion USB non disponible: {e}"}), 500
+    
     try:
         data = request.json
-        # Validation de la valeur de luminosité (0-100)
-        brightness = max(0, min(100, int(data.get('brightness', 0))))
+        brightness = max(0, min(100, int(data.get('brightness', 0)))) # 0-100%
+        command_to_esp = f"LED:{brightness};\n"
         
-        # Format de commande : "LED:50;\n"
-        command = f"LED:{brightness};\n"
-        
-        # Envoyer la commande
-        print(f"Envoi commande LED: {command.strip()}")
-        ser.write(command.encode())
+        print(f"Envoi commande LED: {command_to_esp.strip()}")
+        ser.write(command_to_esp.encode())
         
         # Attendre une réponse simple
-        response = "No response" # Valeur par défaut
-        try:
-            original_timeout = ser.timeout
-            ser.timeout = 0.5 
-            response = ser.readline().decode('utf-8').strip()
-            ser.timeout = original_timeout
-            print(f"Réponse LED: {response}")
-        except Exception as e:
-            print(f"Erreur lors de la lecture de la réponse LED: {e}")
-            response = f"Erreur lecture: {e}"
+        ser.timeout = 0.5 # Timeout court
+        response = ser.readline().decode('utf-8').strip()
+        ser.timeout = 1 # Remettre timeout par défaut
+        print(f"Réponse LED: {response}")
+
+        # Vérifier la réponse attendue ACK_LED:valeur
+        ack_pattern = re.compile(r'ACK_LED:(\d+)')
+        match = ack_pattern.match(response)
         
+        if match and int(match.group(1)) == brightness:
+            status = "success"
+        else:
+            status = "warning" # Ou "error"
+
         return jsonify({
-            "status": "success", 
-            "command_sent": command.strip(),
-            "response_from_esp32": response,
-            "brightness_set": brightness # Renommé pour clarifier vs 'brightness' dans data
+            "status": status,
+            "command_sent": command_to_esp.strip(),
+            "response_from_esp32": response or "No response",
+            "brightness_set": brightness
         })
+            
+    except serial.SerialTimeoutException:
+        print("Timeout lors de l'attente de la réponse LED.")
+        return jsonify({"status": "error", "message": "Timeout: No response from ESP32 for LED command."}), 500
     except Exception as e:
         print(f"Erreur dans /api/led/control: {e}")
+        global ser
+        try: 
+            if ser: ser.close()
+        except: pass
+        ser = None
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/api/orientation', methods=['GET'])
 def get_orientation():
     """ Renvoie les données d'orientation du capteur IMU (via ESP32) """
-    # Fonction originale, avec la vérification initiale de 'ser'
-    if ser is None:
-        return jsonify({"status": "error", "message": "Connexion USB non disponible"}), 500
-        
+    # Repris de votre code original, avec vérification de 'ser'
+    if ser is None or not ser.is_open:
+        # Essayer de rouvrir une fois
+        global ser
+        try:
+            print("Tentative de reconnexion série pour orientation...")
+            if ser: ser.close()
+            ser = serial.Serial(ESP_PORT, BAUD_RATE, timeout=1)
+            if not ser.is_open: raise serial.SerialException("Impossible de rouvrir le port.")
+            print("Reconnexion série réussie.")
+        except Exception as e:
+            print(f"Échec de la reconnexion série: {e}")
+            ser = None
+            return jsonify({"status": "error", "message": f"Connexion USB non disponible: {e}"}), 500
+    
     try:
         command_to_esp = b"GET_ORIENTATION\n"
         print(f"Envoi commande orientation: {command_to_esp.strip()}")
         ser.write(command_to_esp)
         
         # Attendre la réponse
-        # Mettre un timeout un peu plus long car le capteur peut prendre du temps
-        original_timeout = ser.timeout
-        ser.timeout = 1.0 
+        ser.timeout = 1 # Timeout un peu plus long pour la réponse capteur
         response = ser.readline().decode('utf-8').strip()
-        ser.timeout = original_timeout
+        ser.timeout = 1 # Remettre timeout par défaut
         print(f"Réponse orientation: {response}")
         
-        # Analyser la réponse avec une expression régulière
+        # Analyser la réponse avec une expression régulière (identique à votre code original)
         orientation_pattern = re.compile(r'O:(-?\d+\.?\d*),(-?\d+\.?\d*),(-?\d+\.?\d*),(\d+),(\d+),(\d+),(\d+)')
         match = orientation_pattern.match(response)
         
         if match:
+            # Stocker les données (optionnel, mais peut être utile)
             orientation_data = {
                 "roll": float(match.group(1)),
                 "pitch": float(match.group(2)),
@@ -210,38 +259,37 @@ def get_orientation():
             }
             return jsonify({"status": "success", "data": orientation_data})
         else:
-            # Si le format ne correspond pas, retourner une erreur mais inclure la réponse reçue
             return jsonify({
                 "status": "error",
-                "message": "Format de réponse d'orientation invalide reçu de l'ESP32.",
+                "message": "Format de réponse d'orientation invalide de l'ESP32.",
                 "response_from_esp32": response or "No response"
             }), 500
             
     except serial.SerialTimeoutException:
-         print("Timeout lors de l'attente de la réponse orientation.")
-         return jsonify({"status": "error", "message": "Timeout: No response from ESP32 for orientation data."}), 500
+        print("Timeout lors de l'attente de la réponse orientation.")
+        return jsonify({"status": "error", "message": "Timeout: No response from ESP32 for orientation data."}), 500
     except Exception as e:
         print(f"Erreur dans /api/orientation: {e}")
-        # En cas d'erreur ici, la connexion série pourrait être perdue
         global ser
         try: 
             if ser: ser.close()
         except: pass
-        ser = None # Invalider la connexion pour forcer une tentative de reconnexion
+        ser = None
         return jsonify({
             "status": "error",
             "message": f"Erreur lors de la lecture des données d'orientation: {e}"
         }), 500
 
-# --- NOUVEL ENDPOINT POUR LA PROFONDEUR (AJOUTÉ) ---
+# --- NOUVEL ENDPOINT POUR LA PROFONDEUR ---
 @app.route('/api/depth', methods=['GET'])
 def get_depth_data():
     """ Renvoie les données de profondeur du capteur GY-MS5837 (via ESP32) """
-    if ser is None:
-        # Essayer de rouvrir une fois si la connexion a été perdue au démarrage
+    if ser is None or not ser.is_open:
+        # Essayer de rouvrir une fois
         global ser
         try:
             print("Tentative de reconnexion série pour profondeur...")
+            if ser: ser.close()
             ser = serial.Serial(ESP_PORT, BAUD_RATE, timeout=1)
             if not ser.is_open: raise serial.SerialException("Impossible de rouvrir le port.")
             print("Reconnexion série réussie.")
@@ -253,15 +301,12 @@ def get_depth_data():
     try:
         command_to_esp = b"GET_DEPTH\n"
         print(f"Envoi commande profondeur: {command_to_esp.strip()}")
-        # Vider le buffer d'entrée avant d'envoyer pour éviter de lire une vieille réponse
-        ser.reset_input_buffer() 
         ser.write(command_to_esp)
         
         # Attendre la réponse
-        original_timeout = ser.timeout
-        ser.timeout = 1.0 # Timeout un peu plus long pour la réponse capteur
+        ser.timeout = 1 # Timeout un peu plus long pour la réponse capteur
         response = ser.readline().decode('utf-8').strip()
-        ser.timeout = original_timeout
+        ser.timeout = 1 # Remettre timeout par défaut
         print(f"Réponse profondeur: {response}")
         
         # Analyser la réponse avec une expression régulière
@@ -279,7 +324,7 @@ def get_depth_data():
         else:
             return jsonify({
                 "status": "error",
-                "message": "Format de réponse de profondeur invalide reçu de l'ESP32.",
+                "message": "Format de réponse de profondeur invalide de l'ESP32.",
                 "response_from_esp32": response or "No response"
             }), 500
             
@@ -297,9 +342,13 @@ def get_depth_data():
             "status": "error",
             "message": f"Erreur lors de la lecture des données de profondeur: {e}"
         }), 500
-# --- FIN DE L'ENDPOINT AJOUTÉ ---
+# --- FIN DU NOUVEL ENDPOINT ---
 
 if __name__ == '__main__':
-    # Lancement original
+    # Lancer l'application Flask. 
+    # Utiliser debug=False en production stable. debug=True est utile pour le développement.
+    # host='0.0.0.0' permet d'accéder à l'API depuis d'autres machines sur le réseau.
+    # threaded=True est généralement une bonne idée pour que Flask gère mieux plusieurs requêtes,
+    # surtout si les opérations série prennent un peu de temps.
     print("Démarrage de l'API Flask...")
-    app.run(debug=True, host='0.0.0.0', port=5000) 
+    app.run(debug=True, host='0.0.0.0', port=5000, threaded=True) 
