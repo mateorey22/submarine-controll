@@ -39,6 +39,19 @@ def init_serial_connection():
         ser = None
         return False
 
+def send_serial_command(command):
+    """Helper function to send commands to ESP32"""
+    global ser
+    if ser is None:
+        return False
+    
+    try:
+        ser.write(command.encode())
+        return True
+    except Exception as e:
+        print(f"Error sending command: {e}")
+        return False
+
 # Initialize serial connection
 init_serial_connection()
 
@@ -294,20 +307,25 @@ def toggle_stabilization():
         data = request.json
         enabled = data.get('enabled', True)
         
-        # Send stabilization toggle command (this would need to be implemented in ESP32)
-        command = f"STABILIZATION:{1 if enabled else 0}\n"
-        ser.write(command.encode())
-        
-        try:
-            response = ser.readline().decode().strip()
-        except Exception as e:
-            response = f"Error: {e}"
-        
-        return jsonify({
-            "status": "success",
-            "stabilization_enabled": enabled,
-            "response": response
-        })
+        # Send correct stabilization toggle command to match ESP32 implementation
+        command = f"STABILIZE:{1 if enabled else 0}\n"
+        if send_serial_command(command):
+            try:
+                response = ser.readline().decode().strip()
+            except Exception as e:
+                response = f"Error: {e}"
+            
+            return jsonify({
+                "status": "success",
+                "stabilization_enabled": enabled,
+                "command": command.strip(),
+                "response": response
+            })
+        else:
+            return jsonify({
+                "status": "error",
+                "message": "Failed to send stabilization command to ESP32"
+            }), 500
         
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
