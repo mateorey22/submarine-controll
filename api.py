@@ -435,4 +435,120 @@ if __name__ == '__main__':
     print("- /api/telemetry - Complete sensor telemetry")
     print("- /api/stabilization/toggle - Toggle PID stabilization")
     
+    # New endpoint for raw IMU data
+    @app.route('/api/raw_imu_data', methods=['GET'])
+    def get_raw_imu_data():
+        """Endpoint for raw IMU sensor data including calibration status"""
+        if ser is None:
+            return jsonify({"status": "error", "message": "Connexion USB non disponible"}), 500
+        
+        try:
+            # Send command to request raw IMU data
+            ser.write(b"GET_RAW_IMU\n")
+            
+            # Wait for response
+            response = ser.readline().decode().strip()
+            
+            # Parse the response format
+            # Expected: "RAW:<ax>,<ay>,<az>,<gx>,<gy>,<gz>,<mx>,<my>,<mz>;O:<roll>,<pitch>,<yaw>,<s_cal>,<g_cal>,<a_cal>,<m_cal>;"
+            raw_match = re.search(r'RAW:(-?\d+\.?\d*),(-?\d+\.?\d*),(-?\d+\.?\d*),(-?\d+\.?\d*),(-?\d+\.?\d*),(-?\d+\.?\d*),(-?\d+\.?\d*),(-?\d+\.?\d*),(-?\d+\.?\d*)', response)
+            orientation_match = re.search(r'O:(-?\d+\.?\d*),(-?\d+\.?\d*),(-?\d+\.?\d*),(\d+),(\d+),(\d+),(\d+)', response)
+            
+            if not raw_match or not orientation_match:
+                return jsonify({
+                    "status": "error",
+                    "message": "Format de réponse invalide",
+                    "response": response
+                }), 500
+            
+            # Parse raw data
+            accel_x = float(raw_match.group(1))
+            accel_y = float(raw_match.group(2))
+            accel_z = float(raw_match.group(3))
+            gyro_x = float(raw_match.group(4))
+            gyro_y = float(raw_match.group(5))
+            gyro_z = float(raw_match.group(6))
+            mag_x = float(raw_match.group(7))
+            mag_y = float(raw_match.group(8))
+            mag_z = float(raw_match.group(9))
+            
+            # Parse orientation data
+            roll = float(orientation_match.group(1))
+            pitch = float(orientation_match.group(2))
+            yaw = float(orientation_match.group(3))
+            sys_cal = int(orientation_match.group(4))
+            gyro_cal = int(orientation_match.group(5))
+            accel_cal = int(orientation_match.group(6))
+            mag_cal = int(orientation_match.group(7))
+            
+            return jsonify({
+                "status": "success",
+                "data": {
+                    "raw": {
+                        "accel": {
+                            "x": accel_x,
+                            "y": accel_y,
+                            "z": accel_z
+                        },
+                        "gyro": {
+                            "x": gyro_x,
+                            "y": gyro_y,
+                            "z": gyro_z
+                        },
+                        "mag": {
+                            "x": mag_x,
+                            "y": mag_y,
+                            "z": mag_z
+                        }
+                    },
+                    "orientation": {
+                        "roll": roll,
+                        "pitch": pitch,
+                        "yaw": yaw
+                    },
+                    "calibration": {
+                        "system": sys_cal,
+                        "gyro": gyro_cal,
+                        "accel": accel_cal,
+                        "mag": mag_cal
+                    }
+                }
+            })
+            
+        } catch (Exception as e):
+            return jsonify({
+                "status": "error",
+                "message": f"Erreur lors de la lecture des données IMU brutes: {e}"
+            }), 500
+    
+    # Calibration endpoints
+    @app.route('/api/calibration/<command>', methods=['POST'])
+    def calibration_command(command):
+        """Handle IMU calibration commands"""
+        if ser is None:
+            return jsonify({"status": "error", "message": "Connexion USB non disponible"}), 500
+        
+        valid_commands = ['start', 'cancel', 'complete', 'reset', 'save']
+        if command not in valid_commands:
+            return jsonify({"status": "error", "message": f"Commande de calibration invalide: {command}"}), 400
+        
+        try:
+            # Send calibration command to ESP32
+            ser.write(f"CALIBRATE:{command}\n".encode())
+            
+            # Wait for response
+            response = ser.readline().decode().strip()
+            
+            return jsonify({
+                "status": "success",
+                "command": command,
+                "response": response
+            })
+            
+        except Exception as e:
+            return jsonify({
+                "status": "error",
+                "message": f"Erreur lors de l'envoi de la commande de calibration: {e}"
+            }), 500
+    
     app.run(debug=True, host='0.0.0.0', port=5000)
