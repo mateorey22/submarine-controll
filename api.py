@@ -6,14 +6,15 @@ import requests
 import serial
 import time
 import re
-import threading
+# threading n'est pas utilisé, peut être enlevé si non nécessaire ailleurs
+# import threading 
 import json
 
 app = Flask(__name__)
 CORS(app)
 
 # --- CONFIGURATION ---
-ESP_PORT = '/dev/ttyACM0'
+ESP_PORT = '/dev/ttyACM0' # Modifié par l'utilisateur
 BAUD_RATE = 115200
 
 # --- VARIABLES GLOBALES ---
@@ -38,7 +39,7 @@ def get_serial_connection():
             pass
     try:
         ser = serial.Serial(ESP_PORT, BAUD_RATE, timeout=1)
-        time.sleep(2)
+        time.sleep(2) # Laisse le temps à la connexion de s'établir
         print(f"NOUVELLE connexion USB établie sur {ESP_PORT}")
         return ser
     except serial.SerialException as e:
@@ -56,7 +57,7 @@ def send_serial_command(command_str):
         return True
     except Exception as e:
         print(f"Erreur d'écriture série: {e}. Invalidation de la connexion.")
-        global ser
+        global ser # Marquer la connexion comme invalide pour la prochaine tentative
         ser = None
         return False
 
@@ -84,10 +85,10 @@ def get_system_info():
 def camera_status():
     try:
         response = requests.get('http://localhost:8080/?action=stream', stream=True, timeout=2)
-        response.raise_for_status()
+        response.raise_for_status() # Lève une exception pour les codes d'erreur HTTP
         return jsonify({'status': 'OK', 'message': 'Stream is available'})
     except requests.exceptions.RequestException:
-        return jsonify({'status': 'Error', 'message': 'Stream unavailable'}), 503
+        return jsonify({'status': 'Error', 'message': 'Stream unavailable'}), 503 # Service Unavailable
 
 @app.route('/api/motors/control', methods=['POST'])
 def control_motors():
@@ -95,7 +96,7 @@ def control_motors():
     motor_values = [max(1000, min(2000, int(data.get(f'm{i}', 1000)))) for i in range(1, 9)]
     command = "".join([f"M{i}:{v};" for i, v in enumerate(motor_values, 1)]) + "\n"
     if send_serial_command(command):
-        # On ne lit pas de réponse ici pour garder la commande rapide
+        # Pas de lecture de réponse pour garder la commande rapide
         return jsonify({"status": "success", "command_sent": command.strip()})
     else:
         return jsonify({"status": "error", "message": "ESP32 non disponible"}), 503
@@ -115,7 +116,6 @@ def high_level_control():
     success_count = sum(1 for cmd in commands_to_send if send_serial_command(cmd))
     
     if success_count > 0:
-        # Pas besoin de lire la réponse pour chaque commande pour ne pas ralentir
         return jsonify({"status": "success", "commands_sent": success_count})
     else:
         return jsonify({"status": "error", "message": "ESP32 non disponible"}), 503
@@ -147,36 +147,74 @@ def parse_extended_sensor_data(response):
         
         latest_sensor_data['timestamp'] = time.time()
         return True
-    except (IndexError, ValueError) as e:
+    except (IndexError, ValueError, TypeError) as e: # Ajout de TypeError pour robustesse
         print(f"Erreur de parsing des données '{response}': {e}")
         return False
 
-@app.route('/api/telemetry', methods=['GET'])
-def get_telemetry():
+# ROUTE /api/orientation AJOUTÉE ICI
+@app.route('/api/orientation', methods=['GET'])
+def get_orientation():
+    """
+    Endpoint spécifique pour les données d'orientation,
+    utilisé par main.js pour l'affichage de l'orientation.
+    """
     local_ser = get_serial_connection()
     if local_ser:
         try:
             local_ser.write(b"GET_ORIENTATION\n")
             response = local_ser.readline().decode().strip()
             if response:
-                parse_extended_sensor_data(response)
+                if parse_extended_sensor_data(response):
+                    # Retourne la structure complète attendue par main.js
+                    return jsonify({"status": "success", "data": latest_sensor_data})
+                else:
+                    return jsonify({"status": "error", "message": "Format de réponse invalide de l'ESP32", "raw_response": response}), 500
+            else:
+                return jsonify({"status": "error", "message": "Aucune réponse de l'ESP32"}), 503
+        except Exception as e:
+            print(f"Erreur de lecture pour /api/orientation: {e}")
+            global ser
+            ser = None # Invalider la connexion en cas d'erreur
+            return jsonify({"status": "error", "message": f"Erreur de communication série: {e}"}), 500
+    else:
+        return jsonify({"status": "error", "message": "ESP32 non disponible pour /api/orientation"}), 503
+
+
+@app.route('/api/telemetry', methods=['GET'])
+def get_telemetry():
+    """Endpoint pour toutes les données de télémétrie."""
+    local_ser = get_serial_connection()
+    if local_ser:
+        try:
+            local_ser.write(b"GET_ORIENTATION\n") # L'ESP32 renvoie toutes les données avec cette commande
+            response = local_ser.readline().decode().strip()
+            if response:
+                parse_extended_sensor_data(response) # Met à jour latest_sensor_data
         except Exception as e:
             print(f"Erreur de lecture télémétrie: {e}")
             global ser
             ser = None
-    return jsonify({"status": "success", "data": latest_sensor_data})
+    return jsonify({"status": "success", "data": latest_sensor_data}) # Renvoie toujours les dernières données connues
 
 @app.route('/api/stabilization/toggle', methods=['POST'])
 def toggle_stabilization():
     enabled = request.json.get('enabled', True)
     command = f"STABILIZE:{1 if enabled else 0}\n"
     if send_serial_command(command):
-        return jsonify({"status": "success", "stabilization_enabled": enabled})
+        # Attendre une réponse de l'ESP32 pour confirmation
+        local_ser = get_serial_connection()
+        response_from_esp = "N/A"
+        if local_ser:
+            try:
+                response_from_esp = local_ser.readline().decode().strip()
+            except Exception:
+                pass # Ignorer si la lecture échoue ici
+        return jsonify({"status": "success", "stabilization_enabled": enabled, "esp_response": response_from_esp})
     else:
         return jsonify({"status": "error", "message": "Failed to send stabilization command"}), 503
 
 @app.route('/api/serial/test', methods=['GET'])
-def test_serial():
+def test_serial_connection(): # Renommé pour éviter conflit avec import 'serial'
     if get_serial_connection():
         return jsonify({"connected": True, "port": ESP_PORT, "message": "Connexion à l'ESP32 active."})
     else:
