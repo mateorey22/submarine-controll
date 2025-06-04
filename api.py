@@ -13,7 +13,7 @@ app = Flask(__name__)
 CORS(app)
 
 # Configuration USB pour ESP32 S3
-ESP_PORT = '/dev/ttyACM1' # Port USB du Raspberry Pi connecté à l'ESP32 S3
+ESP_PORT = '/dev/ttyACM0' # Port USB du Raspberry Pi connecté à l'ESP32 S3
 BAUD_RATE = 115200
 
 # Global variables for sensor data
