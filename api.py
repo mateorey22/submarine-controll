@@ -427,9 +427,17 @@ def test_serial():
             "message": "Serial connection test failed"
         })
 
-# New endpoint for raw IMU data
-@app.route('/api/raw_imu_data', methods=['GET'])
-def get_raw_imu_data():
+if __name__ == '__main__':
+    print("Starting Enhanced Submarine API...")
+    print("New endpoints:")
+    print("- /api/control/high_level - High-level movement commands")
+    print("- /api/environment - Depth and temperature data")
+    print("- /api/telemetry - Complete sensor telemetry")
+    print("- /api/stabilization/toggle - Toggle PID stabilization")
+    
+    # New endpoint for raw IMU data
+    @app.route('/api/raw_imu_data', methods=['GET'])
+    def get_raw_imu_data():
         """Endpoint for raw IMU sensor data including calibration status"""
         if ser is None:
             return jsonify({"status": "error", "message": "Connexion USB non disponible"}), 500
@@ -507,15 +515,15 @@ def get_raw_imu_data():
                 }
             })
             
-        except Exception as e:
+        } catch (Exception as e):
             return jsonify({
                 "status": "error",
                 "message": f"Erreur lors de la lecture des données IMU brutes: {e}"
             }), 500
-
-# Calibration endpoints
-@app.route('/api/calibration/<command>', methods=['POST'])
-def calibration_command(command):
+    
+    # Calibration endpoints
+    @app.route('/api/calibration/<command>', methods=['POST'])
+    def calibration_command(command):
         """Handle IMU calibration commands"""
         if ser is None:
             return jsonify({"status": "error", "message": "Connexion USB non disponible"}), 500
@@ -542,15 +550,5 @@ def calibration_command(command):
                 "status": "error",
                 "message": f"Erreur lors de l'envoi de la commande de calibration: {e}"
             }), 500
-
-if __name__ == '__main__':
-    print("Starting Enhanced Submarine API...")
-    print("New endpoints:")
-    print("- /api/control/high_level - High-level movement commands")
-    print("- /api/environment - Depth and temperature data")
-    print("- /api/telemetry - Complete sensor telemetry")
-    print("- /api/stabilization/toggle - Toggle PID stabilization")
-    print("- /api/raw_imu_data - Raw IMU sensor data")
-    print("- /api/calibration/<command> - IMU calibration commands")
     
     app.run(debug=True, host='0.0.0.0', port=5000)
